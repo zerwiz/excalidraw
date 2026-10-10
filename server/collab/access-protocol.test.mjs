@@ -74,7 +74,7 @@ const settled = (socket, event, timeoutMs = 1200) =>
 
 before(async () => {
   const created = createCollabServer({
-    origins: ["http://localhost:4172"],
+    origins: ["http://localhost:7311"],
     accessConfig: { registryPath: membersPath, logPath, enforcement: true },
   });
   httpServer = created.httpServer;
@@ -170,7 +170,7 @@ describe("the membership log", () => {
 describe("with enforcement off", () => {
   it("admits everyone, which is the documented legacy behaviour", async () => {
     const created = createCollabServer({
-      origins: ["http://localhost:4172"],
+      origins: ["http://localhost:7311"],
       accessConfig: { registryPath: membersPath, logPath, enforcement: false },
     });
     const server = created.httpServer;

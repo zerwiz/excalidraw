@@ -155,7 +155,7 @@ describe("readConfig", () => {
   it("binds localhost with a local-only origin list", () => {
     const config = readConfig({});
     assert.equal(config.host, "127.0.0.1");
-    assert.equal(config.port, 4174);
+    assert.equal(config.port, 7314);
     assert.ok(
       config.allowedOrigins.every(
         (origin) => origin.includes("localhost") || origin.includes("127.0.0.1"),

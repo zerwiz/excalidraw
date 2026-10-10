@@ -96,3 +96,9 @@ _(filled on close)_
 - **A human-drawn element crossing between the two browser tabs is unverified.** The tooling available to me could not produce a real canvas drag (synthetic pointer events produced a degenerate dot, and the CDP drag helper only moves one DOM element onto another). What _is_ proven is that an encrypted payload posted by one client is received by another in the same room — the protocol tests do exactly that. The end-to-end visual check remains **manual and owed**.
 - **Not deployed to `zerwizserver`.** The server runs locally and is proven locally; shipping it to the box needs the Allfather's route and word.
 - **No TLS.** It binds localhost; exposing it needs a certificate and a proxy, which is a deployment step, not a code change.
+
+---
+
+## Appended 2026-10-10 — the ports moved (`chore-0002`)
+
+Every port named above has been renumbered into the fork's own block, so the history reads correctly and the contract does not: **app `7311` · collab `7312` · bridge `7313` · board `7314`** (was `4172`/`3002`/`4173`/`4174`). The old numbers collided with Vite's own `preview` port and with every Node app's `3000`-range. This note is appended rather than edited into the text above, so the change is visible instead of silently tidied.

@@ -53,6 +53,7 @@ import type {
 import type { Mutable, ValueOf } from "@excalidraw/common/utility-types";
 
 import { appJotaiStore, atom } from "../app-jotai";
+import { buildLocalRoomLink, buildRoomLink } from "../data/roomLink";
 import { ENDPOINTS } from "../endpoints";
 import { settingsAtom } from "../data/settingsState";
 import {
@@ -65,11 +66,7 @@ import {
   SYNC_FULL_SCENE_INTERVAL_MS,
   WS_EVENTS,
 } from "../app_constants";
-import {
-  generateCollaborationLinkData,
-  getCollaborationLink,
-  getSyncableElements,
-} from "../data";
+import { generateCollaborationLinkData, getSyncableElements } from "../data";
 import {
   encodeFilesForUpload,
   FileManager,
@@ -501,10 +498,12 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       ({ roomId, roomKey } = existingRoomLinkData);
     } else {
       ({ roomId, roomKey } = await generateCollaborationLinkData());
+      // The BROWSER stays on this machine's address — pushState refuses a
+      // cross-origin URL. The link handed out is the shareable one, set below.
       window.history.pushState(
         {},
         APP_NAME,
-        getCollaborationLink({ roomId, roomKey }),
+        buildLocalRoomLink(roomId, roomKey),
       );
     }
 
@@ -722,7 +721,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     this.initializeIdleDetector();
 
-    this.setActiveRoomLink(window.location.href);
+    // The link the operator copies must be the SHAREABLE one, not the address
+    // this browser happens to be on — otherwise it reads perfectly and opens
+    // nothing for anyone else.
+    this.setActiveRoomLink(buildRoomLink(roomId, roomKey));
 
     return scenePromise;
   };

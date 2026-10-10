@@ -95,3 +95,9 @@ _(filled on close)_
 - **`diagram-to-code` is not implemented.** It needs the vision path (an image in, code out). The route exists so the panel receives an explicit error instead of a hang; that work is a follow-up ticket.
 - **No auto-start of the bridge.** The desktop shell does not launch it, because that would require a model choice the operator has not made yet. `server/ttd-bridge/start.sh` is the door.
 - **No gateway.** As with feature-0002, policy/attribution/masking belong to the mediated gateway in the team-vault design; this bridge is the local translation layer.
+
+---
+
+## Appended 2026-10-10 — the ports moved (`chore-0002`)
+
+Every port named above has been renumbered into the fork's own block, so the history reads correctly and the contract does not: **app `7311` · collab `7312` · bridge `7313` · board `7314`** (was `4172`/`3002`/`4173`/`4174`). The old numbers collided with Vite's own `preview` port and with every Node app's `3000`-range. This note is appended rather than edited into the text above, so the change is visible instead of silently tidied.

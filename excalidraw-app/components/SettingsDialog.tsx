@@ -500,7 +500,7 @@ export const SettingsDialog = () => {
         />
         <p className="settings-dialog__hint">
           Empty means collaboration is unavailable — the app never falls back to
-          a hosted service. An example is <code>http://localhost:3002</code>.
+          a hosted service. An example is <code>http://localhost:7312</code>.
         </p>
         <TextField
           label={
@@ -516,7 +516,24 @@ export const SettingsDialog = () => {
         />
         <p className="settings-dialog__hint">
           Empty hides the AI panel. Run the bridge and put its URL here — an
-          example is <code>http://localhost:4173</code>.
+          example is <code>http://localhost:7313</code>.
+        </p>
+        <TextField
+          label={
+            current.publicUrl
+              ? "Public app URL (what room links are built on)"
+              : "Public app URL (what room links are built on) — not set"
+          }
+          value={current.publicUrl ?? ""}
+          placeholder=""
+          onChange={(value) =>
+            update({ ...current, publicUrl: value || undefined })
+          }
+        />
+        <p className="settings-dialog__hint">
+          {current.publicUrl
+            ? `Room links will be built on ${current.publicUrl}.`
+            : "Unset means room links point at THIS machine — right for a solo session, useless to a team. Set the address your team reaches: a public hostname, a tailnet name, or an internal name — either form works."}
         </p>
         <TextField
           label={

@@ -179,7 +179,7 @@ describe("readConfig", () => {
   it("defaults to localhost and refuses to invent a model host", () => {
     const config = readConfig({});
     assert.equal(config.host, "127.0.0.1");
-    assert.equal(config.port, 4173);
+    assert.equal(config.port, 7313);
     assert.equal(config.modelBaseURL, "");
   });
 

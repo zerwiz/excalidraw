@@ -121,3 +121,9 @@ _(filled on close)_
 - **No team/share of settings.** Settings are per-machine, as the ticket specifies; shared team credentials are the vault's job, not the whiteboard's.
 - **No gateway.** The ticket stores _which_ model; policy, attribution and masking belong to the mediated gateway in the team-vault design. `buildChatRequest` is deliberately separate from sending so that gateway can consume the same shape later.
 - **`opencode-zen` shape is operator-chosen, not catalogue-derived** — `GET /v1/models` does not declare a path per model, so the UI asks rather than guessing.
+
+---
+
+## Appended 2026-10-10 — the ports moved (`chore-0002`)
+
+Every port named above has been renumbered into the fork's own block, so the history reads correctly and the contract does not: **app `7311` · collab `7312` · bridge `7313` · board `7314`** (was `4172`/`3002`/`4173`/`4174`). The old numbers collided with Vite's own `preview` port and with every Node app's `3000`-range. This note is appended rather than edited into the text above, so the change is visible instead of silently tidied.

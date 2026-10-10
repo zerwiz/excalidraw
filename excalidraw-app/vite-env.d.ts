@@ -33,6 +33,8 @@ interface ImportMetaEnv {
   VITE_APP_MODEL: string;
   VITE_APP_COLLAB_SERVER: string;
   VITE_APP_TICKETS_API: string;
+  // The address a room link carries — the host the team reaches.
+  VITE_APP_PUBLIC_URL: string;
 
   // Set this flag to false if you want to open the overlay by default
   VITE_APP_COLLAPSE_OVERLAY: string;

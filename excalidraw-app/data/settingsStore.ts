@@ -34,6 +34,12 @@ export type Settings = {
    * nothing to read from.
    */
   ticketsApi?: string;
+  /**
+   * The address a ROOM LINK carries — the host the team reaches, when that is
+   * not where the operator is sitting. Unset means "this browser", which is
+   * honest and never points anyone at a server we do not run.
+   */
+  publicUrl?: string;
 };
 
 /** The empty shape — what a migration falls back to, and the local-only state. */
@@ -101,6 +107,9 @@ const envDefaults = () => {
     ...(isString(import.meta.env.VITE_APP_TICKETS_API)
       ? { ticketsApi: normalizeBaseURL(import.meta.env.VITE_APP_TICKETS_API) }
       : {}),
+    ...(isString(import.meta.env.VITE_APP_PUBLIC_URL)
+      ? { publicUrl: normalizeBaseURL(import.meta.env.VITE_APP_PUBLIC_URL) }
+      : {}),
   };
 };
 
@@ -156,6 +165,9 @@ export const migrateSettings = (input: unknown): Settings => {
       : {}),
     ...(isString(raw.ticketsApi)
       ? { ticketsApi: normalizeBaseURL(raw.ticketsApi) }
+      : {}),
+    ...(isString(raw.publicUrl)
+      ? { publicUrl: normalizeBaseURL(raw.publicUrl) }
       : {}),
   };
 };

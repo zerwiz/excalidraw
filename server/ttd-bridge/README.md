@@ -17,7 +17,7 @@ TTD_MODEL=qwen3.6-35b-a3b@q4_k_xl \
 node server/ttd-bridge/index.mjs
 ```
 
-It binds `127.0.0.1:4173` by default. Then set **Settings → AI text-to-diagram backend** to `http://127.0.0.1:4173`.
+It binds `127.0.0.1:7313` by default. Then set **Settings → AI text-to-diagram backend** to `http://127.0.0.1:7313`.
 
 ## Configuration
 
@@ -28,7 +28,7 @@ It binds `127.0.0.1:4173` by default. Then set **Settings → AI text-to-diagram
 | `TTD_MODEL_API_KEY` | _(none)_ | sent as `Authorization: Bearer`; local servers need none |
 | `TTD_BRIDGE_PORT` | `4173` | the port this bridge listens on |
 | `TTD_BRIDGE_HOST` | `127.0.0.1` | the interface it binds — localhost by default |
-| `TTD_BRIDGE_ORIGINS` | `http://localhost:4172,http://127.0.0.1:4172` | comma-separated origins allowed by CORS |
+| `TTD_BRIDGE_ORIGINS` | `http://localhost:7311,http://127.0.0.1:7311` | comma-separated origins allowed by CORS |
 
 ## Routes
 

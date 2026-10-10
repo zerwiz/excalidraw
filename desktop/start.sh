@@ -3,7 +3,7 @@
 # Nothing is opened in a browser.
 set -euo pipefail
 
-PORT="${EXCALIDRAW_PORT:-4172}"
+PORT="${EXCALIDRAW_PORT:-7311}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/.." && pwd)"
 APP_DIR="$ROOT/excalidraw-app"

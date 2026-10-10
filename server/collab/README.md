@@ -11,10 +11,10 @@ client ◀──  init-room · first-in-room · new-user · room-user-change
 ## Run
 
 ```bash
-node server/collab/index.mjs          # ws://127.0.0.1:3002
+node server/collab/index.mjs          # ws://127.0.0.1:7312
 ```
 
-Then set **Settings → Collaboration server** to `http://localhost:3002`.
+Then set **Settings → Collaboration server** to `http://localhost:7312`.
 
 ## The property that matters
 
@@ -28,7 +28,7 @@ It also means the server cannot merge scenes, resolve conflicts, or inspect cont
 | --- | --- | --- |
 | `COLLAB_PORT` | `3002` | listen port |
 | `COLLAB_HOST` | `127.0.0.1` | bind interface — localhost by default |
-| `COLLAB_ORIGINS` | `http://localhost:4172,http://127.0.0.1:4172` | allowed CORS origins |
+| `COLLAB_ORIGINS` | `http://localhost:7311,http://127.0.0.1:7311` | allowed CORS origins |
 
 ## How a join works
 

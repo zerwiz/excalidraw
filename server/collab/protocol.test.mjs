@@ -49,7 +49,7 @@ const join = async (socket, room) => {
 };
 
 before(async () => {
-  const created = createCollabServer({ origins: ["http://localhost:4172"] });
+  const created = createCollabServer({ origins: ["http://localhost:7311"] });
   httpServer = created.httpServer;
   await new Promise((resolve) => httpServer.listen(0, "127.0.0.1", resolve));
   url = `http://127.0.0.1:${httpServer.address().port}`;

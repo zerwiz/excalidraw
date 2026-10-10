@@ -291,7 +291,7 @@ export const createFenceFilter = () => {
  * to a hosted host: with no `TTD_MODEL_BASE_URL` the bridge refuses to start.
  */
 export const readConfig = (env = process.env) => ({
-  port: Number(env.TTD_BRIDGE_PORT ?? 4173),
+  port: Number(env.TTD_BRIDGE_PORT ?? 7313),
   host: env.TTD_BRIDGE_HOST ?? "127.0.0.1",
   modelBaseURL: normalizeBaseURL(env.TTD_MODEL_BASE_URL),
   model: env.TTD_MODEL ?? "",
@@ -299,7 +299,7 @@ export const readConfig = (env = process.env) => ({
   /** the instruction prepended to the panel's messages */
   systemPrompt: env.TTD_SYSTEM_PROMPT ?? DEFAULT_SYSTEM_PROMPT,
   /** comma-separated origins allowed to call the bridge */
-  allowedOrigins: (env.TTD_BRIDGE_ORIGINS ?? "http://localhost:4172,http://127.0.0.1:4172")
+  allowedOrigins: (env.TTD_BRIDGE_ORIGINS ?? "http://localhost:7311,http://127.0.0.1:7311")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),

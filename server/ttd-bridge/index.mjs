@@ -7,7 +7,7 @@
  *   node server/ttd-bridge/index.mjs
  *
  * Then set "AI text-to-diagram backend" to this bridge's URL in Settings
- * (http://127.0.0.1:4173).
+ * (http://127.0.0.1:7313).
  *
  * It binds localhost by default. It logs timing and token counts — never a
  * prompt, never a response body, never a credential.

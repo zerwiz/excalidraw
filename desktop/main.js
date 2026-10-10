@@ -9,7 +9,7 @@ app.commandLine.appendSwitch("disable-gpu");
 app.commandLine.appendSwitch("disable-gpu-compositing");
 app.commandLine.appendSwitch("disable-gpu-sandbox");
 
-const PORT = process.env.EXCALIDRAW_PORT || 4172;
+const PORT = process.env.EXCALIDRAW_PORT || 7311;
 const URL = `http://localhost:${PORT}`;
 const LOG_FILE = path.join(app.getPath("userData"), "debug.log");
 

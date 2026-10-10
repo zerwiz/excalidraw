@@ -33,6 +33,12 @@ export const ENDPOINTS = {
   aiBackend: clean(env.VITE_APP_AI_BACKEND),
   /** error reporting — absent means no error reporting at all */
   sentryDsn: clean(env.VITE_APP_SENTRY_DSN),
+  /**
+   * The address ROOM LINKS carry. Empty means "wherever this browser is", which
+   * is right for one machine and useless to a team — so a deployed install sets
+   * it to the host the team reaches.
+   */
+  publicUrl: clean(env.VITE_APP_PUBLIC_URL),
 } as const;
 
 /**

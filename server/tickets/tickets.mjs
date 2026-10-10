@@ -171,11 +171,11 @@ export const columnOf = (relativePath) => {
 };
 
 export const readConfig = (env = process.env) => ({
-  port: Number(env.TICKETS_PORT ?? 4174),
+  port: Number(env.TICKETS_PORT ?? 7314),
   host: env.TICKETS_HOST ?? "127.0.0.1",
   root: path.resolve(env.TICKETS_REPO_ROOT ?? process.cwd()),
   allowedOrigins: (
-    env.TICKETS_ORIGINS ?? "http://localhost:4172,http://127.0.0.1:4172"
+    env.TICKETS_ORIGINS ?? "http://localhost:7311,http://127.0.0.1:7311"
   )
     .split(",")
     .map((origin) => origin.trim())

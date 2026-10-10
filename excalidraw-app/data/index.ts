@@ -34,6 +34,7 @@ import {
   FILE_UPLOAD_MAX_BYTES,
   ROOM_ID_BYTES,
 } from "../app_constants";
+import { ENDPOINTS, EndpointNotConfiguredError } from "../endpoints";
 
 import { encodeFilesForUpload } from "./FileManager";
 import { saveFilesToFirebase } from "./firebase";
@@ -62,8 +63,8 @@ export const getSyncableElements = (
     isSyncableElement(element),
   ) as SyncableExcalidrawElement[];
 
-const BACKEND_V2_GET = import.meta.env.VITE_APP_BACKEND_V2_GET_URL;
-const BACKEND_V2_POST = import.meta.env.VITE_APP_BACKEND_V2_POST_URL;
+const BACKEND_V2_GET = ENDPOINTS.sceneBackendGet;
+const BACKEND_V2_POST = ENDPOINTS.sceneBackendPost;
 
 const generateRoomId = async () => {
   const buffer = new Uint8Array(ROOM_ID_BYTES);
@@ -203,6 +204,9 @@ export const importFromBackend = async (
   id: string,
   decryptionKey: string,
 ): Promise<ImportedDataState> => {
+  if (!BACKEND_V2_GET) {
+    throw new EndpointNotConfiguredError("Scene sharing");
+  }
   try {
     const response = await fetch(`${BACKEND_V2_GET}${id}`);
 
@@ -251,6 +255,13 @@ export const exportToBackend = async (
   files: BinaryFiles,
 ): Promise<ExportToBackendResult> => {
   const encryptionKey = await generateEncryptionKey("string");
+
+  if (!BACKEND_V2_GET || !BACKEND_V2_POST) {
+    return {
+      url: null,
+      errorMessage: new EndpointNotConfiguredError("Scene sharing").message,
+    };
+  }
 
   const payload = await compressData(
     new TextEncoder().encode(

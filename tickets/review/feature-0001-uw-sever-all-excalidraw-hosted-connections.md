@@ -101,3 +101,49 @@ require a data migration.
 ## Resolution
 
 *(filled on close)*
+## Resolution
+
+**Landed** on `feat/sever-hosted-connections` (2026-10-10).
+
+### The seam
+
+New module `excalidraw-app/endpoints.ts` resolves **every** remote host in one place and
+exposes a `features` map. An endpoint that is unset yields a feature that is *unavailable* —
+never a fallback to a hosted default. This is the module `feature-0002` will make
+operator-configurable.
+
+### What changed
+
+| Surface | Change |
+|---|---|
+| `.env.development`, `.env.production` | every hosted endpoint **emptied**; the Firebase config and the Excalidraw+ export public key are **gone**; tracking stays `false`. Comments state the rule. |
+| `sentry.ts` | gated on `VITE_APP_SENTRY_DSN`; the hardcoded DSN and the `excalidraw.com` hostname allow-list are removed. Unset → `Sentry.init` never runs, and the feature-flags block is skipped with it. |
+| `data/firebase.ts` | `isFirebaseConfigured()` added; `_initializeFirebase` refuses; `saveToFirebase`, `saveFilesToFirebase` and `loadFilesFromFirebase` are inert without a config. No request leaves the process. |
+| `data/index.ts` | reads the endpoints module; `importFromBackend` throws `EndpointNotConfiguredError`; `exportToBackend` returns a `null` url with that message. |
+| `collab/Collab.tsx` | `initializeRoom` refuses when no collab server is configured, on the same line the socket used to be opened. |
+| `components/AI.tsx` | `AIComponents` renders `null` when no AI backend is set (feature-0005 adds the "no model configured" state). |
+| `LibraryMenuBrowseButton.tsx` | renders `null` with no library URL. |
+| `PublishLibrary.tsx` | submits refuse with an explicit error with no library backend; the note link points at the configured URL or renders as plain text. |
+| `.env.test` | a test-only `VITE_APP_WS_SERVER_URL` so the collab tests exercise a configured server (`socket.io-client` is mocked — nothing leaves the process). |
+| `vite-env.d.ts` | `VITE_APP_SENTRY_DSN` declared. |
+
+### Verified
+
+- **`yarn test:app --watch=false` → 142 files passed, 2458 tests passed, 47 skipped, 1 todo.** (The collab suite initially failed because the emptied env removed its server; `.env.test` now configures one, which is the honest fix — the shipped default stays empty.)
+- `yarn test:typecheck` → clean.
+- `yarn build:app` → **built in 20.94s**, PWA 59 entries.
+- `npx eslint --max-warnings=0` on every changed file → clean.
+- **The severance measurement:**
+  `grep -rInE 'json(-dev)?\.excalidraw\.com|libraries\.excalidraw\.com|oss-collab\.excalidraw\.com|oss-ai\.excalidraw\.com|plus\.excalidraw\.com|app\.excalidraw\.com|firebaseio\.com|excalidraw-room-persistence|sentry\.io|cloudfunctions\.net' excalidraw-app packages --include='*.ts' --include='*.tsx'`
+  excluding `node_modules` and `/tests/` → **no matches.**
+
+### Not done, deliberately
+
+- **Firebase is inert, not removed.** The dependency and the encrypted-scene code stay until
+  `feature-0003` provides the self-hosted room server and storage to replace them. Removing it
+  now would break the collab protocol that 0003 needs intact.
+- **The scene-sharing backend is guarded, not replaced.** Share links are unavailable until an
+  operator configures one; a self-hosted share store is part of `feature-0003`.
+- **No browser HAR check.** The network-log evidence the ticket asks for is owed — the grep and
+  the suite prove no literal remains, but a captured session on a fresh profile has not been
+  recorded. Stated as manual, not as done.

@@ -65,3 +65,45 @@ configuration can resurrect an upsell.
 ## Resolution
 
 *(filled on close)*
+## Resolution
+
+**Landed** on `chore/strip-excalidraw-promo` (2026-10-10).
+
+**Removed**
+
+| Surface | What went |
+|---|---|
+| `components/ExcalidrawPlusPromoBanner.tsx` | the file, and its top-right render in `App.tsx` |
+| `components/ExportToExcalidrawPlus.tsx` | the file, its `renderCustomUI` export dialog, and its two command-palette entries |
+| `components/EncryptedIcon.tsx` | the file, and the footer's link to `plus.excalidraw.com/blog/end-to-end-encryption` |
+| `ExcalidrawPlusIframeExport.tsx` | the file, and the `/excalidraw-plus-export` window path |
+| `components/AppMainMenu.tsx` | the Excalidraw+ item, the sign-up/sign-in item, `MainMenu.DefaultItems.Socials` |
+| `components/AppWelcomeScreen.tsx` | the signed-in plus heading and the sign-up link |
+| `components/AppSidebar.tsx` + `AppSidebar.scss` | the comments and presentation promo tabs; the sidebar is now bare `DefaultSidebar` |
+| `app_constants.ts` | `COOKIES` and `isExcalidrawPlusSignedUser` — **removed, not stubbed** |
+| `components/AI.tsx` | the 429 message's "try Excalidraw+ for more requests" link |
+| `TTDDialog/Chat/ChatMessage.tsx` | the rate-limit upsell button |
+| `packages/excalidraw/components/HelpDialog.tsx` | the blog button pointing at `plus.excalidraw.com/blog` |
+| `App.tsx` | `ExcalidrawPlusCommand`, `ExcalidrawPlusAppCommand`, the "Export to Excalidraw+" command and overwrite-confirm action |
+
+**Verified**
+
+- `yarn test:typecheck` → `Done` (clean).
+- `yarn test:code` (eslint) on every changed file → clean, 0 warnings.
+- `npx vitest run` on `contextmenu.test.tsx` and `regressionTests.test.tsx` → **68 passed**.
+- `./bin/guards/ticket-ids.sh` → `✔ ticket naming and ownership (7 tickets)`.
+- `grep -rInE 'Excalidraw\+|plus\.excalidraw|app\.excalidraw' excalidraw-app packages --include='*.ts' --include='*.tsx'`
+  → only `actionToggleSearchMenu.ts:35` (`app.excalidrawContainerValue`, an unrelated variable) and
+  the i18n locale JSON files. **No rendered string or URL remains.**
+
+**Not done, deliberately**
+
+- The `Excalidraw+` translation keys in `packages/excalidraw/locales/*.json` are left in place.
+  They are unreferenced now, and deleting 40 locale files' worth of keys is churn with no
+  rendered effect. If they should go, that is a separate ticket.
+- The upstream attribution in `LICENSE` and the docs stays — this ticket removes upsell, not
+  credit.
+
+**Manual verification still owed:** the visual pass (open the app, welcome screen, main menu,
+sidebar, footer, help dialog) has not been done in a browser, only by grep and by the test
+suite. Recorded as manual, not as "tests pass".

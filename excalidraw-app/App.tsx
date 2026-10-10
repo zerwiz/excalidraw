@@ -125,7 +125,11 @@ import {
 import { isBrowserStorageStateNewer } from "./data/tabSync";
 import { ShareDialog, shareDialogStateAtom } from "./share/ShareDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
-import { settingsDialogStateAtom } from "./data/settingsState";
+import { TicketsDialog } from "./components/TicketsDialog";
+import {
+  settingsDialogStateAtom,
+  ticketsDialogStateAtom,
+} from "./data/settingsState";
 import CollabError, { collabErrorIndicatorAtom } from "./collab/CollabError";
 import { useHandleAppTheme } from "./useHandleAppTheme";
 import { getPreferredLanguage } from "./app-language/language-detector";
@@ -401,6 +405,9 @@ const ExcalidrawWrapper = () => {
   const [, setShareDialogState] = useAtom(shareDialogStateAtom);
   const [settingsDialogState, setSettingsDialogState] = useAtom(
     settingsDialogStateAtom,
+  );
+  const [ticketsDialogState, setTicketsDialogState] = useAtom(
+    ticketsDialogStateAtom,
   );
   const [collabAPI] = useAtom(collabAPIAtom);
   const [isCollaborating] = useAtomWithInitialValue(isCollaboratingAtom, () => {
@@ -957,6 +964,7 @@ const ExcalidrawWrapper = () => {
         <AppMainMenu
           onCollabDialogOpen={onCollabDialogOpen}
           onSettingsDialogOpen={() => setSettingsDialogState({ isOpen: true })}
+          onTicketsDialogOpen={() => setTicketsDialogState({ isOpen: true })}
           isCollaborating={isCollaborating}
           isCollabEnabled={!isCollabDisabled}
           theme={appTheme}
@@ -1015,6 +1023,12 @@ const ExcalidrawWrapper = () => {
         <AppSidebar />
 
         {settingsDialogState.isOpen && <SettingsDialog />}
+
+        {ticketsDialogState.isOpen && (
+          <TicketsDialog
+            onClose={() => setTicketsDialogState({ isOpen: false })}
+          />
+        )}
 
         {errorMessage && (
           <ErrorDialog onClose={() => setErrorMessage("")}>

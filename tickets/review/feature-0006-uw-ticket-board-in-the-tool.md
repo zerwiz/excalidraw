@@ -70,3 +70,44 @@ backlog.
 ## Resolution
 
 *(filled on close)*
+## Resolution
+
+**Landed** on `feat/ticket-board` (2026-10-10).
+
+### The server
+
+`server/tickets/` — dependency-free, **read-only**:
+
+| File | What |
+|---|---|
+| `tickets.mjs` | the pure logic: filename + header parsing, `buildCard` (which records the same mismatches the guard flags), `buildBoard`, `columnOf`, `safeResolve`, `readConfig`. |
+| `index.mjs` | the server: `GET /api/tickets`, `GET /api/tickets/<column>/<file>`, `GET /healthz`, CORS, and a 405 for anything that is not `GET`. |
+| `tickets.test.mjs` | 17 `node --test` cases. |
+
+### Requirements, met
+
+- **Four columns** read from `tickets/{open,in-progress,review,done}/`, in workflow order.
+- **Cards** carry title, type, risk and owner, parsed from the filename and the header line.
+- **A card opens the ticket body.**
+- **Malformed names and Owner mismatches are flagged** with the same rule the guard enforces — `buildCard` reports `problems`, and the server re-checks against the repo's own `tickets/DEVIDS`.
+- **Empty state** renders; a missing column directory is empty, not an error.
+- **Read-only.** Only `GET` is served; there is no write path anywhere.
+- **The path never escapes.** `columnOf` accepts only `<status>/<file>.md` (so `_templates/` and `README.md` are unreachable), and `safeResolve` refuses any traversal — belt and braces.
+- Both themes: the styles use the app's CSS variables throughout.
+
+### Verified
+
+- **17 server tests** (`yarn test:server`, now covering both services: 33 total).
+- **Full suite: 144 files, 2489 tests passed** · `yarn test:typecheck` clean · `yarn build:app` built · eslint clean.
+- **Live against the real repository:**
+  - `GET /healthz` → `{"ok":true,"root":"/home/zerwizomar/CodeP/excalidraw"}`
+  - `GET /api/tickets` → **7 tickets: 3 open, 4 review**, each with type/risk/owner and **zero problems**
+  - `GET /api/tickets/review/chore-0001-…md` → the markdown
+  - **Traversal refused** — `../../RULES/08-tickets.md`, `..%2f..%2fRULES%2f…`, `open%2f..%2f..%2f..%2fetc%2fpasswd` and `%2e%2e%2f…%2fAGENTS.md` all → `404 {"error":"not a ticket path"}`; `_templates/feature.md` → the same, because only the four status folders are servable.
+  - **In the browser**, the menu shows **Tickets** beside Settings, and the dialog rendered the four columns with all seven real tickets (screenshot: `/tmp/excalidraw-ticket-board.png`).
+
+### Not done, deliberately
+
+- **No editing, moving or creating from the UI.** The files stay the source of truth; a write path is what would let the board become a second, divergent backlog.
+- **The body renders as pre-formatted text, not rendered markdown.** The contract asks that the body renders; a markdown renderer is a dependency and a surface this ticket does not need. Worth its own ticket if the plain view grates.
+- **No polling.** The board loads on open; a board that has gone stale says so on the next open rather than streaming.

@@ -106,13 +106,13 @@ server-side but chat history, which remains local.
 
 ### Verified
 
-- **16 bridge tests** (`yarn test:bridge`): frame builders, request shape (streaming on, no
+- **16 bridge tests** (`yarn test:server`): frame builders, request shape (streaming on, no
   `Authorization` without a key, bearer with one), chunk parsing including `[DONE]` and
   malformed frames, finish-reason mapping, full translation, the terminal-`done` guarantee
   when an upstream omits a finish reason, upstream-error reporting, and that usage goes to a
   callback rather than into the stream.
 - **Full suite unchanged: 144 files, 2489 tests passed.** `server/**` is now excluded from
-  vitest (`node:test` files cannot run under it) and covered by `yarn test:bridge` instead.
+  vitest (`node:test` files cannot run under it) and covered by `yarn test:server` instead.
 - `yarn test:typecheck` clean · `yarn build:app` built · eslint clean.
 - **End to end against this machine's rail.** Bridge on `127.0.0.1:4173` → `127.0.0.1:8080/v1`:
   - `GET /healthz` → `{"ok":true,"model":"…","upstream":"http://127.0.0.1:8080/v1"}`.

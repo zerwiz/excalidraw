@@ -16,6 +16,11 @@ export const settingsDialogStateAtom = atom<{ isOpen: boolean }>({
   isOpen: false,
 });
 
+/** Whether the read-only tickets board is open. */
+export const ticketsDialogStateAtom = atom<{ isOpen: boolean }>({
+  isOpen: false,
+});
+
 /** Persist and publish in one step. */
 export const persistSettings = (
   set: (update: Settings) => void,

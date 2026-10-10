@@ -460,6 +460,18 @@ export const SettingsDialog = () => {
           }
         />
         <p className="settings-dialog__hint">Empty hides the AI panel.</p>
+        <TextField
+          label="Tickets board (read-only)"
+          value={current.ticketsApi ?? ""}
+          placeholder="http://localhost:4174"
+          onChange={(value) =>
+            update({ ...current, ticketsApi: value || undefined })
+          }
+        />
+        <p className="settings-dialog__hint">
+          The board only reads <code>tickets/</code>; the files stay the source
+          of truth. Empty means no board.
+        </p>
       </section>
     </Dialog>
   );

@@ -29,6 +29,11 @@ export type Settings = {
    * AI panel renders nothing rather than calling a hosted default.
    */
   aiBackend?: string;
+  /**
+   * The read-only tickets board (feature-0006). When unset the board has
+   * nothing to read from.
+   */
+  ticketsApi?: string;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -90,6 +95,9 @@ export const migrateSettings = (input: unknown): Settings => {
     ...(isString(raw.aiBackend)
       ? { aiBackend: normalizeBaseURL(raw.aiBackend) }
       : {}),
+    ...(isString(raw.ticketsApi)
+      ? { ticketsApi: normalizeBaseURL(raw.ticketsApi) }
+      : {}),
   };
 };
 
@@ -143,7 +151,8 @@ export const hasAnyEndpoint = (settings: Settings): boolean =>
   settings.models.length > 0 ||
   settings.agents.length > 0 ||
   Boolean(settings.collabServer) ||
-  Boolean(settings.aiBackend);
+  Boolean(settings.aiBackend) ||
+  Boolean(settings.ticketsApi);
 
 /**
  * The public view of a model entry: the API key is **not** included. Use this

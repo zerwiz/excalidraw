@@ -1,0 +1,95 @@
+.tickets-dialog {
+  .tickets-dialog__hint {
+    opacity: 0.8;
+    font-size: 0.875rem;
+  }
+
+  .tickets-dialog__error {
+    color: var(--color-danger);
+    font-size: 0.875rem;
+
+    button {
+      margin-left: 0.5rem;
+    }
+  }
+
+  .tickets-dialog__board {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    align-items: start;
+  }
+
+  .tickets-dialog__column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+
+    h4 {
+      margin: 0;
+      font-size: 0.8125rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      opacity: 0.75;
+    }
+  }
+
+  .tickets-dialog__count {
+    opacity: 0.6;
+    font-weight: 400;
+  }
+
+  .tickets-dialog__empty {
+    opacity: 0.5;
+    margin: 0;
+  }
+
+  .tickets-dialog__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    text-align: left;
+    padding: 0.5rem 0.625rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-surface-low);
+    background-color: var(--color-surface-lowest);
+    color: var(--text-primary-color);
+    cursor: pointer;
+    font: inherit;
+
+    &:hover {
+      border-color: var(--color-primary);
+    }
+  }
+
+  .tickets-dialog__card-title {
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .tickets-dialog__meta {
+    font-size: 0.6875rem;
+    opacity: 0.65;
+  }
+
+  .tickets-dialog__problem {
+    font-size: 0.6875rem;
+    color: var(--color-danger);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tickets-dialog__detail pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    margin: 0;
+    max-height: 60vh;
+    overflow: auto;
+  }
+}

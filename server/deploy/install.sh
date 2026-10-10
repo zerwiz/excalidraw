@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+# deploy — put the fork's services on a server, as the server already runs things.
+#
+#   server/deploy/install.sh <host> [user]
+#
+# What it does, and why in this shape:
+#   · the APP is built here (Vite inlines VITE_APP_* at build time) and the static
+#     output is copied — the server needs no yarn and no build step;
+#   · the SERVICES are plain Node and copied as source, with `npm install
+#     --omit=dev socket.io` run on the server for the room server's one dependency;
+#   · each runs as a systemd USER service, which is the pattern the server already
+#     uses (whynot-homepage.service, aiassetvault.service);
+#   · everything binds the TAILNET address, not 0.0.0.0 — reachable by the team,
+#     not by the LAN, and not public.
+#
+# Re-running is safe: it rebuilds, re-copies and restarts.
+set -euo pipefail
+
+HOST="${1:?usage: install.sh <host> [user]}"
+USER_NAME="${2:-zerwizserver}"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# Configuration — one place. Override with env.
+#
+# Checked explicitly rather than with `${VAR:?}`: a missing value has to stop the
+# deploy with a sentence, and a plain check is one line you can read.
+TAILNET_IP="${EXCALIDRAW_TAILNET_IP:-}"
+TAILNET_NAME="${EXCALIDRAW_TAILNET_NAME:-}"
+for pair in "EXCALIDRAW_TAILNET_IP:$TAILNET_IP" "EXCALIDRAW_TAILNET_NAME:$TAILNET_NAME"; do
+  if [ -z "${pair#*:}" ]; then
+    echo "install.sh: ${pair%%:*} is required (the host's tailnet address / name)" >&2
+    exit 2
+  fi
+done
+# What the BAKED-IN urls use. The tailnet IP by default, not the name: a browser
+# with Secure DNS (DoH) resolves a MagicDNS name publicly, does not reach the
+# tailnet, and reports ERR_CONNECTION_REFUSED while `curl` on the same machine
+# works — the same name, two different answers. An IP needs no resolver.
+# HTTPS on the tailnet NAME, because that is where `tailscale serve` can hold a
+# real certificate. A browser exposes `crypto.subtle` only in a SECURE CONTEXT,
+# and a room key is generated with it — so plain HTTP on an IP cannot run
+# collaboration at all. Measured: `Cannot read properties of undefined (reading
+# 'generateKey')`.
+PUBLIC_HOST="${EXCALIDRAW_PUBLIC_HOST:-$TAILNET_NAME}"
+PUBLIC_SCHEME="https"
+APP_URL="$PUBLIC_SCHEME://$PUBLIC_HOST"
+# Tailscale permits HTTPS on 443, 8443 and 10000 only — three doors, which is
+# enough: the app, the board and the room server.
+HTTPS_APP_PORT="${EXCALIDRAW_HTTPS_APP_PORT:-443}"
+HTTPS_BOARD_PORT="${EXCALIDRAW_HTTPS_BOARD_PORT:-8443}"
+HTTPS_COLLAB_PORT="${EXCALIDRAW_HTTPS_COLLAB_PORT:-10000}"
+APP_PORT="${EXCALIDRAW_APP_PORT:-7311}"
+COLLAB_PORT="${EXCALIDRAW_COLLAB_PORT:-7312}"
+BRIDGE_PORT="${EXCALIDRAW_BRIDGE_PORT:-7313}"
+BOARD_PORT="${EXCALIDRAW_BOARD_PORT:-7314}"
+REMOTE_DIR="${EXCALIDRAW_REMOTE_DIR:-/home/$USER_NAME/excalidraw}"
+SSH="ssh -o BatchMode=yes -l $USER_NAME $HOST"
+
+say() { printf '  %s\n' "$*"; }
+
+echo "deploying the fork to $USER_NAME@$HOST:$REMOTE_DIR (tailnet-only)"
+
+# ── 1. Build the app here ────────────────────────────────────────────────────
+say "building the app with this host's addresses baked in"
+cd "$ROOT"
+VITE_APP_PUBLIC_URL="$APP_URL/" \
+VITE_APP_COLLAB_SERVER="$APP_URL:$HTTPS_COLLAB_PORT" \
+VITE_APP_AI_BACKEND="$APP_URL:$HTTPS_APP_PORT" \
+VITE_APP_TICKETS_API="$APP_URL:$HTTPS_BOARD_PORT" \
+yarn --silent build:app >/dev/null
+say "built: $(du -sh excalidraw-app/build | cut -f1)"
+
+# ── 2. Make room on the server ───────────────────────────────────────────────
+$SSH "mkdir -p '$REMOTE_DIR'/{app,server,bin,state} '$REMOTE_DIR/units'"
+
+# ── 3. The static app ────────────────────────────────────────────────────────
+say "copying the app"
+rsync -az --delete -e "ssh -o BatchMode=yes -l $USER_NAME" \
+  "$ROOT/excalidraw-app/build/" "$HOST:$REMOTE_DIR/app/"
+
+# ── 4. The services (plain Node, no build) ───────────────────────────────────
+say "copying the room server, the board and the bridge"
+for svc in collab tickets ttd-bridge; do
+  rsync -az --delete -e "ssh -o BatchMode=yes -l $USER_NAME" \
+    --exclude node_modules --exclude '*.test.mjs' \
+    "$ROOT/server/$svc/" "$HOST:$REMOTE_DIR/server/$svc/"
+done
+
+# The tickets the board reads. Without these the board answers happily and
+# reports zero — a green health check over an empty shelf.
+say "copying the ticket ledger"
+rsync -az --delete -e "ssh -o BatchMode=yes -l $USER_NAME" \
+  "$ROOT/tickets/" "$HOST:$REMOTE_DIR/tickets/"
+
+# ── 5. The static server, written on the server so it is small and explicit ──
+$SSH "cat > '$REMOTE_DIR/bin/static-server.mjs'" <<'NODE'
+#!/usr/bin/env node
+/**
+ * A small static server for the built app. Serves files, falls back to
+ * index.html for an unknown path (a single-page app), and refuses to escape the
+ * root. No dependency: this is a deployment detail, not a product feature.
+ */
+import { createReadStream, existsSync, statSync } from "node:fs";
+import { createServer } from "node:http";
+import { extname, join, normalize, resolve } from "node:path";
+
+const ROOT = resolve(process.env.APP_ROOT ?? ".");
+const PORT = Number(process.env.APP_PORT ?? 7311);
+const HOST = process.env.APP_HOST ?? "127.0.0.1";
+
+const TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".woff2": "font/woff2",
+  ".map": "application/json; charset=utf-8",
+};
+
+createServer((req, res) => {
+  const url = new URL(req.url ?? "/", "http://localhost");
+  let path = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
+  let file = join(ROOT, path);
+  if (!file.startsWith(ROOT)) {
+    res.writeHead(403).end("forbidden");
+    return;
+  }
+  if (!existsSync(file) || statSync(file).isDirectory()) {
+    // A single-page app: an unknown path is the app, not a 404.
+    file = join(ROOT, "index.html");
+  }
+  res.writeHead(200, {
+    "content-type": TYPES[extname(file)] ?? "application/octet-stream",
+    "cache-control": file.endsWith("index.html")
+      ? "no-cache"
+      : "public, max-age=31536000, immutable",
+  });
+  createReadStream(file).pipe(res);
+}).listen(PORT, HOST, () => {
+  console.log(`app on http://${HOST}:${PORT} serving ${ROOT}`);
+});
+NODE
+
+say "installing the room server's one dependency (socket.io)"
+$SSH "cd '$REMOTE_DIR/server/collab' && npm install --omit=dev --silent socket.io >/dev/null 2>&1 && node -e \"require.resolve('socket.io')\" && echo 'socket.io ok'"
+
+# ── 6. systemd user units — the server's own pattern ─────────────────────────
+# Resolve node ON THE SERVER. Resolving it here bakes in this laptop's path and
+# systemd answers `203/EXEC` — which names nothing useful unless you read the journal.
+REMOTE_NODE="$($SSH 'command -v node')"
+[ -n "$REMOTE_NODE" ] || { echo "no node on $HOST" >&2; exit 3; }
+say "writing systemd user units (node: $REMOTE_NODE)"
+
+write_unit() {  # <name> <description> <exec> <env lines>
+  local name=$1 description=$2 exec=$3 env=$4
+  $SSH "cat > '$REMOTE_DIR/units/$name.service'" <<UNIT
+[Unit]
+Description=$description
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=$REMOTE_DIR
+ExecStart=$exec
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+$env
+
+[Install]
+WantedBy=default.target
+UNIT
+}
+
+write_unit excalidraw-app "Excalidraw app (built, static) :$APP_PORT" \
+  "$REMOTE_NODE $REMOTE_DIR/bin/static-server.mjs" \
+  "Environment=APP_ROOT=$REMOTE_DIR/app
+Environment=APP_PORT=$APP_PORT
+Environment=APP_HOST=127.0.0.1"
+
+write_unit excalidraw-collab "Excalidraw room server (encrypted relay only) :$COLLAB_PORT" \
+  "$REMOTE_NODE $REMOTE_DIR/server/collab/index.mjs" \
+  "Environment=COLLAB_PORT=$COLLAB_PORT
+Environment=COLLAB_HOST=127.0.0.1
+Environment=COLLAB_ORIGINS=$APP_URL
+Environment=COLLAB_MEMBERS=$REMOTE_DIR/state/members.json
+Environment=COLLAB_ACCESS_LOG=$REMOTE_DIR/state/access.log"
+
+write_unit excalidraw-board "Excalidraw tickets board (read-only) :$BOARD_PORT" \
+  "$REMOTE_NODE $REMOTE_DIR/server/tickets/index.mjs" \
+  "Environment=TICKETS_PORT=$BOARD_PORT
+Environment=TICKETS_HOST=127.0.0.1
+Environment=TICKETS_REPO_ROOT=$REMOTE_DIR
+Environment=TICKETS_ORIGINS=$APP_URL"
+
+# ── 7. Enable and start ──────────────────────────────────────────────────────
+say "enabling and starting"
+$SSH "mkdir -p ~/.config/systemd/user && cp '$REMOTE_DIR/units/'*.service ~/.config/systemd/user/ && systemctl --user daemon-reload && systemctl --user enable excalidraw-app excalidraw-collab excalidraw-board 2>&1 | tail -3
+# RESTART, not `enable --now`: for a unit already running, `--now` does nothing
+# and the service keeps the OLD environment — so a re-deploy silently changes
+# nothing while reporting success.
+systemctl --user restart excalidraw-app excalidraw-collab excalidraw-board; systemctl --user --no-pager --lines=0 status excalidraw-app excalidraw-collab excalidraw-board 2>&1 | grep -E 'Active|●' | head"
+
+# ── 8. The HTTPS doors — this is what makes the app a SECURE CONTEXT ─────────
+say "serving over HTTPS on the tailnet (tailscale serve)"
+$SSH "tailscale serve --bg --https=$HTTPS_APP_PORT  http://127.0.0.1:$APP_PORT  >/dev/null 2>&1 || true
+tailscale serve --bg --https=$HTTPS_BOARD_PORT http://127.0.0.1:$BOARD_PORT >/dev/null 2>&1 || true
+tailscale serve --bg --https=$HTTPS_COLLAB_PORT http://127.0.0.1:$COLLAB_PORT >/dev/null 2>&1 || true
+tailscale serve status 2>&1 | head -8"
+
+# ── 9. Prove it answers ──────────────────────────────────────────────────────
+say "checking"
+# Loopback proves the SERVICES; the HTTPS door proves the CERTIFICATE.
+for probe in "127.0.0.1:$APP_PORT/" "127.0.0.1:$COLLAB_PORT/healthz" "127.0.0.1:$BOARD_PORT/healthz"; do
+  printf '    local  %-30s ' "$probe"
+  $SSH "curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://$probe" 2>/dev/null || printf 'no-answer'
+  echo
+done
+for probe in "$PUBLIC_HOST/" "$PUBLIC_HOST:$HTTPS_BOARD_PORT/healthz" "$PUBLIC_HOST:$HTTPS_COLLAB_PORT/healthz"; do
+  printf '    https  %-30s ' "$probe"
+  $SSH "curl -s -o /dev/null -w '%{http_code}' --max-time 8 https://$probe" 2>/dev/null || printf 'no-answer'
+  echo
+done
+
+echo
+echo "done. The app is at $APP_URL/ (HTTPS, tailnet only)."
+echo "      board $APP_URL:$HTTPS_BOARD_PORT  ·  collab wss://$PUBLIC_HOST:$HTTPS_COLLAB_PORT"
+echo "      HTTPS is not decoration: collaboration needs crypto.subtle, which a"
+echo "      browser only exposes in a secure context."
+echo "The bridge is NOT deployed: it refuses to start without a model, and this host"
+echo "has only an embedding model in Ollama. Point it at one, then add a unit."

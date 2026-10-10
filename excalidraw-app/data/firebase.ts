@@ -57,7 +57,25 @@ let firebaseApp: ReturnType<typeof initializeApp> | null = null;
 let firestore: ReturnType<typeof getFirestore> | null = null;
 let firebaseStorage: ReturnType<typeof getStorage> | null = null;
 
+/**
+ * Firebase is the inherited storage for collaboration scenes, shared files and
+ * share-link uploads. This fork ships with **no** Firebase config, so these
+ * functions are inert until an operator supplies one.
+ * See `tickets/open/feature-0001-uw-sever-all-excalidraw-hosted-connections.md`.
+ */
+export const isFirebaseConfigured = () =>
+  Boolean(FIREBASE_CONFIG && Object.keys(FIREBASE_CONFIG).length > 0);
+
+const _requireFirebase = () => {
+  if (!isFirebaseConfigured()) {
+    throw new Error(
+      "Firebase is not configured: no hosted storage is used by default.",
+    );
+  }
+};
+
 const _initializeFirebase = () => {
+  _requireFirebase();
   if (!firebaseApp) {
     firebaseApp = initializeApp(FIREBASE_CONFIG);
   }
@@ -83,6 +101,13 @@ const _getStorage = () => {
 export const loadFirebaseStorage = async () => {
   return _getStorage();
 };
+
+/**
+ * Guarded cheaply by callers that can degrade: when Firebase is unconfigured
+ * there is nothing to load, so return an empty result rather than reaching the
+ * network (and rather than throwing mid-restore).
+ */
+export const hasFirebaseStorage = () => isFirebaseConfigured();
 
 type FirebaseStoredScene = {
   sceneVersion: number;
@@ -149,6 +174,13 @@ export const saveFilesToFirebase = async ({
   prefix: string;
   files: { id: FileId; buffer: Uint8Array }[];
 }) => {
+  if (!isFirebaseConfigured()) {
+    return {
+      savedFiles: [] as FileId[],
+      erroredFiles: files.map(({ id }) => id),
+    };
+  }
+
   const storage = await loadFirebaseStorage();
 
   const erroredFiles: FileId[] = [];
@@ -195,6 +227,8 @@ export const saveToFirebase = async (
     !roomId ||
     !roomKey ||
     !socket ||
+    // no hosted storage configured: nothing to persist to
+    !isFirebaseConfigured() ||
     isSavedToFirebase(portal, elements)
   ) {
     return null;
@@ -278,6 +312,10 @@ export const loadFilesFromFirebase = async (
 ) => {
   const loadedFiles: BinaryFileData[] = [];
   const erroredFiles = new Map<FileId, true>();
+
+  if (!isFirebaseConfigured()) {
+    return { loadedFiles, erroredFiles };
+  }
 
   await Promise.all(
     [...new Set(filesIds)].map(async (id) => {

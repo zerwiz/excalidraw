@@ -15,12 +15,19 @@ import type { StreamChunk } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 import { TTDIndexedDBAdapter } from "../data/TTDStorage";
+import { ENDPOINTS, features } from "../endpoints";
 
 export const AIComponents = ({
   excalidrawAPI,
 }: {
   excalidrawAPI: ExcalidrawImperativeAPI;
 }) => {
+  // No AI backend configured: render nothing rather than calling a hosted
+  // default. feature-0005 adds the "no model configured" state + Settings link.
+  if (!features.ai) {
+    return null;
+  }
+
   return (
     <>
       <DiagramToCodePlugin
@@ -51,9 +58,7 @@ export const AIComponents = ({
           const textFromFrameChildren = getTextFromElements(children);
 
           const response = await fetch(
-            `${
-              import.meta.env.VITE_APP_AI_BACKEND
-            }/v1/ai/diagram-to-code/generate-streaming`,
+            `${ENDPOINTS.aiBackend}/v1/ai/diagram-to-code/generate-streaming`,
             {
               method: "POST",
               headers: {
@@ -153,9 +158,7 @@ export const AIComponents = ({
           const { onChunk, onStreamCreated, signal, messages } = props;
 
           const result = await TTDStreamFetch({
-            url: `${
-              import.meta.env.VITE_APP_AI_BACKEND
-            }/v1/ai/text-to-diagram/chat-streaming`,
+            url: `${ENDPOINTS.aiBackend}/v1/ai/text-to-diagram/chat-streaming`,
             messages,
             onChunk,
             onStreamCreated,

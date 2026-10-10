@@ -53,6 +53,7 @@ import type {
 import type { Mutable, ValueOf } from "@excalidraw/common/utility-types";
 
 import { appJotaiStore, atom } from "../app-jotai";
+import { ENDPOINTS, features } from "../endpoints";
 import {
   CURSOR_SYNC_TIMEOUT,
   FILE_UPLOAD_MAX_BYTES,
@@ -506,6 +507,17 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       );
     }
 
+    // No collaboration server configured: do not open a socket anywhere. This
+    // fork contacts no hosted service by default, and the inherited default was
+    // an Excalidraw-run server.
+    if (!features.collaboration) {
+      this.setIsCollaborating(false);
+      this.setErrorDialog(
+        "Collaboration is not configured. Set a collaboration server in Settings.",
+      );
+      return null;
+    }
+
     // TODO: `ImportedDataState` type here seems abused
     const scenePromise = resolvablePromise<
       | (ImportedDataState & { elements: readonly OrderedExcalidrawElement[] })
@@ -531,7 +543,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     try {
       this.portal.socket = this.portal.open(
-        socketIOClient(import.meta.env.VITE_APP_WS_SERVER_URL, {
+        socketIOClient(ENDPOINTS.collabServer!, {
           transports: ["websocket", "polling"],
         }),
         roomId,

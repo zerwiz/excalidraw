@@ -277,6 +277,19 @@ const PublishLibrary = ({
 
     const previewImage = await generatePreviewImage(clonedLibItems);
 
+    // Publishing needs the community library backend. This fork ships with none,
+    // so refuse instead of posting to an Excalidraw-controlled host.
+    if (!import.meta.env.VITE_APP_LIBRARY_BACKEND) {
+      console.error(
+        "Library publishing is not configured: no library backend is set.",
+      );
+      onError(
+        new Error(`${t("publishDialog.errors.required")} (library backend)`),
+      );
+      setIsSubmitting(false);
+      return;
+    }
+
     const libContent: ExportedLibraryData = {
       type: EXPORT_DATA_TYPES.excalidrawLibrary,
       version: VERSIONS.excalidrawLibrary,
@@ -369,6 +382,10 @@ const PublishLibrary = ({
 
   const shouldRenderForm = !!libraryItems.length;
 
+  // The community library backend is not configured in this build, so there is
+  // nowhere to publish to. Do not render the form or link to a hosted default.
+  const libraryUrl = import.meta.env.VITE_APP_LIBRARY_URL;
+
   const containsPublishedItems = libraryItems.some(
     (item) => item.status === "published",
   );
@@ -384,15 +401,15 @@ const PublishLibrary = ({
           <div className="publish-library-note">
             <Trans
               i18nKey="publishDialog.noteDescription"
-              link={(el) => (
-                <a
-                  href="https://libraries.excalidraw.com"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  {el}
-                </a>
-              )}
+              link={(el) =>
+                libraryUrl ? (
+                  <a href={libraryUrl} target="_blank" rel="noopener">
+                    {el}
+                  </a>
+                ) : (
+                  <span>{el}</span>
+                )
+              }
             />
           </div>
           <span className="publish-library-note">

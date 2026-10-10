@@ -37,7 +37,7 @@ import {
 import { ENDPOINTS, EndpointNotConfiguredError } from "../endpoints";
 
 import { encodeFilesForUpload } from "./FileManager";
-import { saveFilesToFirebase } from "./firebase";
+import { saveRoomFiles } from "./roomFiles";
 import { buildRoomLink } from "./roomLink";
 
 import type { WS_SUBTYPES } from "../app_constants";
@@ -299,7 +299,7 @@ export const exportToBackend = async (
       url.hash = `json=${json.id},${encryptionKey}`;
       const urlString = url.toString();
 
-      await saveFilesToFirebase({
+      await saveRoomFiles({
         prefix: `/files/shareLinks/${json.id}`,
         files: filesToUpload,
       });

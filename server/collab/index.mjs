@@ -28,6 +28,12 @@ import {
   readConfig as readAccessConfig,
 } from "./access.mjs";
 import {
+  readBlob,
+  readConfig as readFilesConfig,
+  safePath,
+  saveBlob,
+} from "./files.mjs";
+import {
   RoomStore,
   isPlausiblePayload,
   isPlausibleRoomId,
@@ -36,14 +42,86 @@ import {
 
 const config = readConfig();
 const access = readAccessConfig();
+const files = readFilesConfig();
 const store = new RoomStore();
 
 export const createCollabServer = ({
   origins = config.allowedOrigins,
   accessConfig = access,
 } = {}) => {
-  const httpServer = createServer((req, res) => {
-    if (req.url === "/healthz") {
+  const httpServer = createServer(async (req, res) => {
+    // File blobs. Collaboration uploads them ALREADY ENCRYPTED with the room key,
+    // so these are opaque bytes the server cannot read — the same property as the
+    // scene relay. The id is unguessable (the client generates it), which is the
+    // capability: the same model the hosted storage used.
+    const url = new URL(req.url ?? "/", "http://localhost");
+
+    // A preflight is answered first, or a cross-origin POST never happens.
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, corsFor(req));
+      res.end();
+      return;
+    }
+
+    if (url.pathname.startsWith("/files/")) {
+      const key = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+      if (!safePath(files.dir, key)) {
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "invalid key" }));
+        return;
+      }
+
+      if (req.method === "POST" || req.method === "PUT") {
+        const chunks = [];
+        let size = 0;
+        let refused = false;
+        for await (const chunk of req) {
+          size += chunk.length;
+          if (size > files.maxBytes) {
+            refused = true;
+            break;
+          }
+          chunks.push(chunk);
+        }
+        if (refused) {
+          res.writeHead(413, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: "blob too large" }));
+          return;
+        }
+        const result = await saveBlob(files.dir, key, Buffer.concat(chunks), {
+          maxBytes: files.maxBytes,
+        });
+        res.writeHead(result.ok ? 200 : 400, {
+          "content-type": "application/json",
+          ...(corsFor(req)),
+        });
+        res.end(JSON.stringify(result));
+        return;
+      }
+
+      if (req.method === "GET") {
+        const blob = await readBlob(files.dir, key);
+        if (!blob) {
+          res.writeHead(404, { "content-type": "application/json", ...corsFor(req) });
+          res.end(JSON.stringify({ error: "no such blob" }));
+          return;
+        }
+        res.writeHead(200, {
+          "content-type": "application/octet-stream",
+          "content-length": blob.length,
+          "cache-control": "public, max-age=31536000, immutable",
+          ...corsFor(req),
+        });
+        res.end(blob);
+        return;
+      }
+
+      res.writeHead(405, { "content-type": "application/json", ...corsFor(req) });
+      res.end(JSON.stringify({ error: "method not allowed" }));
+      return;
+    }
+
+    if (url.pathname === "/healthz") {
       const payload = JSON.stringify({ ok: true, ...store.stats() });
       res.writeHead(200, {
         "content-type": "application/json",
@@ -54,6 +132,23 @@ export const createCollabServer = ({
     res.writeHead(404, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: "not found" }));
   });
+
+  /**
+   * The REST side answers the page, which lives on another origin — until now only
+   * socket.io had CORS, so a plain fetch to /healthz failed and looked like the
+   * server being down. This is the fix for that class of confusion.
+   */
+  const corsFor = (req) => {
+    const origin = req.headers.origin;
+    return origin && origins.includes(origin)
+      ? {
+          "access-control-allow-origin": origin,
+          "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+          "access-control-allow-headers": "content-type",
+          vary: "origin",
+        }
+      : {};
+  };
 
   const io = new Server(httpServer, {
     cors: { origin: origins, methods: ["GET", "POST"] },

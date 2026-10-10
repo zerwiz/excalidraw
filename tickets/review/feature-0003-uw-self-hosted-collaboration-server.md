@@ -90,3 +90,70 @@ to local-only, rollback does not strand a document.
 ## Resolution
 
 *(filled on close)*
+## Resolution
+
+**Landed** on `feat/collab-server` (2026-10-10).
+
+### The server
+
+`server/collab/` — a self-hosted room server speaking **the protocol the client already
+speaks**, so no client change is needed beyond pointing Settings at it:
+
+| File | What |
+|---|---|
+| `rooms.mjs` | the pure state: `RoomStore` (join/leave rosters, last-scene storage, TTL sweep), payload and room-id validation, `readConfig`. |
+| `index.mjs` | the socket.io wiring, exported as `createCollabServer` so tests can bind an ephemeral port. |
+| `rooms.test.mjs` · `protocol.test.mjs` | 13 + 11 tests. |
+| `README.md` · `start.sh` | how to run it. |
+
+`socket.io@4.8.4` added as a root devDependency (the client is `socket.io-client@4.8.1`).
+
+**The server cannot read a room.** The room key lives in the URL *fragment*, which a
+browser never sends, so every payload arrives already encrypted and the server relays
+opaque bytes. It follows that it cannot merge scenes or resolve conflicts — those stay on
+the clients, as they already were.
+
+### Requirements, met
+
+- **The protocol is implemented exactly**: `init-room` on connect; `first-in-room`,
+  `new-user`, `room-user-change`, `client-broadcast`, `user-follow-room-change` to clients;
+  `join-room`, `server-broadcast`, `server-volatile-broadcast`, `user-follow` from clients.
+- **Persistence, scoped to the case the server owns.** The last *non-volatile* payload is
+  stored per room and replayed to the **first member of an emptied room** — so a room
+  survives everyone leaving. A later joiner is served by a **peer** via `new-user`, which is
+  the existing protocol; the server does not duplicate it. A volatile payload (a cursor) is
+  **never** persisted, and that is tested.
+- **Degrades to local.** With no server configured, `initializeRoom` refuses (feature-0001);
+  the editor keeps working.
+- **Binds localhost** by default; origins restricted to the local app.
+- **Bounded**: room ids `[A-Za-z0-9_-]{6,64}`, an 8 MiB payload cap, a 16 MiB stored-scene
+  cap, a 30-minute TTL on empty rooms, and a sweep that logs only when it drops something.
+- **The hook for feature-0004** is the `join-room` handler, as its README says.
+
+### Verified
+
+- **24 server tests**, of which **11 drive two REAL socket.io clients against a REAL server**
+  on an ephemeral port — nothing mocked: `init-room`, `first-in-room`, `new-user`, the
+  roster, encrypted-payload relay, **that a socket in another room receives nothing**, scene
+  replay to the first member of an emptied room, **that a second member is not replayed to**,
+  that a volatile payload is never persisted, `user-follow` relay, the departure roster,
+  malformed-room-id refusal, and `/healthz`.
+- `yarn test:server` → **57 tests** across all three services. `yarn test:typecheck` clean.
+- **Live, against this machine:** the server came up on `:3002`, `/healthz` reported
+  `{"rooms":0,"members":0}`; starting a session in the browser created a room URL and the
+  roster went to **1**; a **second browser session** opened the same room URL and the roster
+  went to **2**, with the client's collaboration control reading **2** and a peer avatar
+  rendered. Screenshot: `/tmp/collab-page3.png`.
+
+### NOT verified — stated plainly
+
+- **A human-drawn element crossing between the two browser tabs is unverified.** The tooling
+  available to me could not produce a real canvas drag (synthetic pointer events produced a
+  degenerate dot, and the CDP drag helper only moves one DOM element onto another). What *is*
+  proven is that an encrypted payload posted by one client is received by another in the same
+  room — the protocol tests do exactly that. The end-to-end visual check remains **manual and
+  owed**.
+- **Not deployed to `zerwizserver`.** The server runs locally and is proven locally; shipping
+  it to the box needs the Allfather's route and word.
+- **No TLS.** It binds localhost; exposing it needs a certificate and a proxy, which is a
+  deployment step, not a code change.

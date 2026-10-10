@@ -76,3 +76,59 @@ server-side but chat history, which remains local.
 ## Resolution
 
 *(filled on close)*
+## Resolution
+
+**Landed** on `feat/ttd-bridge` (2026-10-10).
+
+### The bridge
+
+`server/ttd-bridge/` — a Node service with **no dependencies**:
+
+| File | What |
+|---|---|
+| `bridge.mjs` | the translation logic: frame builders, the upstream request, chunk parsing, finish-reason mapping, `translateUpstream`, `readConfig`. Pure + injected `fetch`, so it tests without a network. |
+| `index.mjs` | the server: the panel route, a `diagram-to-code` route that answers an explicit error rather than pretending, `/healthz`, CORS, and a log line of timing and counts only. |
+| `bridge.test.mjs` | 16 `node --test` cases. |
+| `README.md`, `start.sh` | how to run it; `start.sh` refuses without a model. |
+
+### Requirements, met
+
+- **The client contract is unchanged.** The panel still POSTs and still parses
+  `{type:"content",delta}` / `{type:"done",finishReason}`; the bridge converts an OpenAI
+  `chat.completions` stream into exactly that.
+- **The upstream is a configured model**, not a compiled-in host. `TTD_MODEL_BASE_URL` is
+  required; with it unset the bridge **refuses to start** rather than picking a default.
+- **No model configured → no request.** `AI.tsx` now renders the panel with an explicit
+  *"No model configured"* welcome screen and an **Open Settings** button, and `onTextSubmit`
+  returns a `RequestError` — so a stray submit is refused, not sent anywhere.
+- **Nothing logs a prompt.** The log line is `{event, ok, ms, firstDeltaMs, model, tokens, messages}`.
+- **It streams.** `stream: true` is always sent and each delta is forwarded as it arrives.
+
+### Verified
+
+- **16 bridge tests** (`yarn test:bridge`): frame builders, request shape (streaming on, no
+  `Authorization` without a key, bearer with one), chunk parsing including `[DONE]` and
+  malformed frames, finish-reason mapping, full translation, the terminal-`done` guarantee
+  when an upstream omits a finish reason, upstream-error reporting, and that usage goes to a
+  callback rather than into the stream.
+- **Full suite unchanged: 144 files, 2489 tests passed.** `server/**` is now excluded from
+  vitest (`node:test` files cannot run under it) and covered by `yarn test:bridge` instead.
+- `yarn test:typecheck` clean · `yarn build:app` built · eslint clean.
+- **End to end against this machine's rail.** Bridge on `127.0.0.1:4173` → `127.0.0.1:8080/v1`:
+  - `GET /healthz` → `{"ok":true,"model":"…","upstream":"http://127.0.0.1:8080/v1"}`.
+  - A prompt streamed the **exact contract**, progressively:
+    `data: {"type":"content","delta":"{\""}` … `data: {"type":"done","finishReason":"stop"}`.
+  - With a model that fails to load, the panel got `data: {"type":"error",…"Upstream returned 500"}` —
+    the error path proven rather than asserted.
+  - The log line: `{"event":"ttd","ok":true,"ms":6699,"firstDeltaMs":6025,"model":"qwen3-coder-30b-a3b-3050@iq2_m","tokens":null,"messages":1}`
+    — **no prompt text, no completion**.
+
+### Not done, deliberately
+
+- **`diagram-to-code` is not implemented.** It needs the vision path (an image in, code out).
+  The route exists so the panel receives an explicit error instead of a hang; that work is a
+  follow-up ticket.
+- **No auto-start of the bridge.** The desktop shell does not launch it, because that would
+  require a model choice the operator has not made yet. `server/ttd-bridge/start.sh` is the door.
+- **No gateway.** As with feature-0002, policy/attribution/masking belong to the mediated
+  gateway in the team-vault design; this bridge is the local translation layer.

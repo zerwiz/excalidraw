@@ -37,7 +37,7 @@ if command -v lsof >/dev/null 2>&1; then
       echo "killed port holder $p"
       STOPPED=1
     fi
-  done < <(lsof -ti ":$PORT" 2>/dev/null || true)
+  done < <(lsof -ti ":$PORT" -sTCP:LISTEN 2>/dev/null || true)
 fi
 
 sleep 1

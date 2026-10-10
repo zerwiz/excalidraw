@@ -1,0 +1,12 @@
+# Default owner — the map is docs/OWNERS.md
+* @zerwiz
+
+# Tickets and rules are contracts: a change to them is a change to the method.
+/tickets/ @zerwiz
+/RULES/ @zerwiz
+/docs/ @zerwiz
+/bin/guards/ @zerwiz
+
+# The app shell owns the network surfaces (collab, AI, share).
+/excalidraw-app/ @zerwiz
+/desktop/ @zerwiz

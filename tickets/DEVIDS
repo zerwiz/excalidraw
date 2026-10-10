@@ -1,0 +1,8 @@
+# Dev ids — one line per developer:  <devid> <github-handle>
+#
+# A ticket filename carries a dev id:  <type>-<NNNN>-<devid>-<slug>.md
+# The id makes two developers filing the same number visible in a directory
+# listing, and bin/guards/ticket-ids.sh checks the id matches the Owner line.
+#
+# Add a line when a new teammate joins. Keep dev ids short (2-3 letters).
+uw @zerwiz

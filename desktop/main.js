@@ -1,6 +1,7 @@
-const { app, BrowserWindow, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
+
+const { app, BrowserWindow, shell } = require("electron");
 
 // GPU process segfaults on Wayland + NVIDIA (Electron 33.x).
 // Disable the GPU process via command-line switches before app.whenReady().
@@ -23,6 +24,7 @@ function log(msg) {
   } catch {
     /* silently drop — logging must never break the app */
   }
+  // eslint-disable-next-line no-console -- Electron writes this to the app log
   console.log(line.trim());
 }
 

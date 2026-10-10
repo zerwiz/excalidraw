@@ -10,9 +10,7 @@
 
 ## Impact
 
-**Affected:** who gains what.
-**Risk if not built:** what it costs to wait.
-**Urgency:** why now.
+**Affected:** who gains what. **Risk if not built:** what it costs to wait. **Urgency:** why now.
 
 ## Architecture intent
 
@@ -26,8 +24,7 @@ One line: why this capability, in this shape, now.
 ## Constraints
 
 - Interface/schema stability.
-- No request leaves the machine for an Excalidraw-controlled or third-party host
-  unless the operator configured it (`RULES/08`, ticket feature-0001).
+- No request leaves the machine for an Excalidraw-controlled or third-party host unless the operator configured it (`RULES/08`, ticket feature-0001).
 - No hardcoded absolute paths; config resolves from env/config with one default.
 - Any new surface must render under both the light and dark theme blocks.
 
@@ -41,12 +38,10 @@ Explicitly excluded. Name the tempting adjacent work you are refusing here.
 - **Negative:** invalid input is rejected, with the exact response.
 - **Compatibility:** nothing existing regressed.
 
-## Operations *(medium/high risk only)*
+## Operations _(medium/high risk only)_
 
-**Rollout:** how it reaches users.
-**Observability:** what signal tells you it worked — and what tells you it broke.
-**Rollback:** the trigger and the mechanism.
+**Rollout:** how it reaches users. **Observability:** what signal tells you it worked — and what tells you it broke. **Rollback:** the trigger and the mechanism.
 
 ## Resolution
 
-*(filled on close)*
+_(filled on close)_

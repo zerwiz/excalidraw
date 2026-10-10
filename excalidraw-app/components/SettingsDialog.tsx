@@ -13,7 +13,13 @@ import {
   testConnection,
 } from "../data/modelProviders";
 import { settingsDialogStateAtom, settingsAtom } from "../data/settingsState";
-import { createId, redactProvider, saveSettings } from "../data/settingsStore";
+import {
+  createId,
+  hasAnyEndpoint,
+  loadSettings,
+  redactProvider,
+  saveSettings,
+} from "../data/settingsStore";
 
 import "./SettingsDialog.scss";
 
@@ -57,12 +63,27 @@ export const SettingsDialog = () => {
    * rendered back — the field starts empty every time the dialog opens.
    */
   const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const current = settings ?? emptySettings();
 
   const update = useCallback(
     (next: Settings) => {
-      saveSettings(next);
+      // Persist FIRST and report the truth: a settings write that silently
+      // fails looks exactly like one that worked, which is how an operator
+      // loses an afternoon.
+      try {
+        saveSettings(next);
+        const readBack = loadSettings();
+        if (!hasAnyEndpoint(readBack) && hasAnyEndpoint(next)) {
+          throw new Error("the write did not survive a read-back");
+        }
+        setSaveError(null);
+        setSavedAt(new Date().toLocaleTimeString());
+      } catch (error: any) {
+        setSaveError(error?.message ?? String(error));
+      }
       setSettings(next);
     },
     [setSettings],
@@ -193,6 +214,25 @@ export const SettingsDialog = () => {
             exports, and contacts no server.
           </p>
         )}
+        {/*
+          The save state is ALWAYS on screen. A settings write that fails
+          silently looks exactly like one that worked — which is how an operator
+          loses an afternoon — and "did that save?" is the first question
+          anyone asks of a dialog with no Save button.
+        */}
+        <p
+          className={
+            saveError
+              ? "settings-dialog__save is-error"
+              : "settings-dialog__save"
+          }
+        >
+          {saveError
+            ? `NOT saved: ${saveError}`
+            : savedAt
+            ? `Saved to this machine at ${savedAt} — every change saves as you type; there is no Save button.`
+            : "Every change saves as you type — there is no Save button."}
+        </p>
       </div>
 
       <section className="settings-dialog__section">
@@ -261,11 +301,18 @@ export const SettingsDialog = () => {
               <p className="settings-dialog__hint">{meta.description}</p>
 
               <TextField
-                label="Base URL"
+                label={model.baseURL ? "Base URL" : "Base URL — not set"}
                 value={model.baseURL}
-                placeholder={meta.baseURLPlaceholder}
+                placeholder=""
                 onChange={(value) => setModel(model.id, { baseURL: value })}
               />
+              {!model.baseURL && (
+                <p className="settings-dialog__hint">
+                  An example for this type is{" "}
+                  <code>{meta.baseURLPlaceholder}</code> — that is a format
+                  hint, not a saved value.
+                </p>
+              )}
 
               {meta.keyExpected && (
                 <label className="settings-dialog__field">
@@ -440,30 +487,45 @@ export const SettingsDialog = () => {
           <h3>Servers</h3>
         </header>
         <TextField
-          label="Collaboration server (WebSocket)"
+          label={
+            current.collabServer
+              ? "Collaboration server (WebSocket)"
+              : "Collaboration server (WebSocket) — not set"
+          }
           value={current.collabServer ?? ""}
-          placeholder="http://localhost:3002"
+          placeholder=""
           onChange={(value) =>
             update({ ...current, collabServer: value || undefined })
           }
         />
         <p className="settings-dialog__hint">
           Empty means collaboration is unavailable — the app never falls back to
-          a hosted service.
+          a hosted service. An example is <code>http://localhost:3002</code>.
         </p>
         <TextField
-          label="AI text-to-diagram backend"
+          label={
+            current.aiBackend
+              ? "AI text-to-diagram backend"
+              : "AI text-to-diagram backend — not set"
+          }
           value={current.aiBackend ?? ""}
-          placeholder="http://localhost:4173"
+          placeholder=""
           onChange={(value) =>
             update({ ...current, aiBackend: value || undefined })
           }
         />
-        <p className="settings-dialog__hint">Empty hides the AI panel.</p>
+        <p className="settings-dialog__hint">
+          Empty hides the AI panel. Run the bridge and put its URL here — an
+          example is <code>http://localhost:4173</code>.
+        </p>
         <TextField
-          label="Tickets board (read-only)"
+          label={
+            current.ticketsApi
+              ? "Tickets board (read-only)"
+              : "Tickets board (read-only) — not set"
+          }
           value={current.ticketsApi ?? ""}
-          placeholder="http://localhost:4174"
+          placeholder=""
           onChange={(value) =>
             update({ ...current, ticketsApi: value || undefined })
           }

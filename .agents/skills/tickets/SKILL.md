@@ -5,9 +5,7 @@ description: Write and manage Excalidraw development tickets in tickets/ — the
 
 # Excalidraw tickets
 
-Tickets live in `tickets/` as files, not a tool. A ticket is a **bounded behaviour
-contract**: someone who has never spoken to you must be able to implement it, review it, and
-prove it finished without reconstructing intent from chat history.
+Tickets live in `tickets/` as files, not a tool. A ticket is a **bounded behaviour contract**: someone who has never spoken to you must be able to implement it, review it, and prove it finished without reconstructing intent from chat history.
 
 Run from the repository root.
 
@@ -15,13 +13,9 @@ Run from the repository root.
 
 ## The problem this solves
 
-Ambiguity in a ticket does not disappear because a ticket exists. **It moves.** If it is not
-absorbed while writing the ticket, it resurfaces later — as questions in the first hour of
-implementation, as review disputes about scope, and as silent drift away from system intent.
+Ambiguity in a ticket does not disappear because a ticket exists. **It moves.** If it is not absorbed while writing the ticket, it resurfaces later — as questions in the first hour of implementation, as review disputes about scope, and as silent drift away from system intent.
 
-This matters more here than in a human-only team, because agents pick up work. An agent has
-**no memory of the conversation that produced the ticket**, so anything left implicit is
-not merely lost — it is invisible.
+This matters more here than in a human-only team, because agents pick up work. An agent has **no memory of the conversation that produced the ticket**, so anything left implicit is not merely lost — it is invisible.
 
 ---
 
@@ -40,9 +34,7 @@ tickets/
 
 File naming: `<type>-<NNNN>-<devid>-<slug>.md` — e.g. `feature-0001-uw-sever-all-excalidraw-hosted-connections.md`.
 
-The dev id is mandatory and comes from `tickets/DEVIDS` (`uw` is @zerwiz). Zero-padded so
-lexical order matches numeric order and the next number is obvious. Type prefixes:
-`bug` · `feature` · `chore` · `spike`.
+The dev id is mandatory and comes from `tickets/DEVIDS` (`uw` is @zerwiz). Zero-padded so lexical order matches numeric order and the next number is obvious. Type prefixes: `bug` · `feature` · `chore` · `spike`.
 
 **Moving the file between folders is the status change:**
 
@@ -60,17 +52,15 @@ Every ticket header names a GitHub handle:
 **Type** feature · **Status** open · **Risk** medium · **Opened** 2026-10-10 · **Owner** @zerwiz
 ```
 
-A ticket with no owner is not filed: work with no name on it does not start. The surface
-decides the handle — `docs/OWNERS.md` is the map and `.github/CODEOWNERS` makes GitHub
-request the matching review automatically.
+A ticket with no owner is not filed: work with no name on it does not start. The surface decides the handle — `docs/OWNERS.md` is the map and `.github/CODEOWNERS` makes GitHub request the matching review automatically.
 
 ---
 
 ## The five sections
 
 | Section | Unlocks | Fails when… |
-|---|---|---|
-| **Problem** | are we solving the correct behaviour gap? | you write the *solution* first |
+| --- | --- | --- |
+| **Problem** | are we solving the correct behaviour gap? | you write the _solution_ first |
 | **Impact** | is this worth doing now, at what urgency? | severity is implied, never stated |
 | **Requirements** | what behaviour must be true after? | they say "improve" or "make robust" |
 | **Non-goals** | what is explicitly excluded? | scope expands by default |
@@ -78,13 +68,12 @@ request the matching review automatically.
 
 Two more sections carry the **design signal**:
 
-- **Architecture intent** — one line: *why this path, now?*
+- **Architecture intent** — one line: _why this path, now?_
 - **Constraints** — the non-negotiable edges, each one checkable in review.
 
 ### Non-goals are the most underused section
 
-They are **sequencing statements**. Without them, a reviewer cannot tell whether a diff that
-also fixes two adjacent things drifted or improved. With them, that becomes mechanical.
+They are **sequencing statements**. Without them, a reviewer cannot tell whether a diff that also fixes two adjacent things drifted or improved. With them, that becomes mechanical.
 
 ---
 
@@ -92,30 +81,26 @@ also fixes two adjacent things drifted or improved. With them, that becomes mech
 
 ### Problem first, solution second
 
-The most common anti-pattern is a solution-first ticket: *"add a WebSocket heartbeat"*. State
-**Current** (what happens now, observably) and **Expected** (what should happen). Only then
-describe the mechanism. Often the stated mechanism turns out to be the wrong one.
+The most common anti-pattern is a solution-first ticket: _"add a WebSocket heartbeat"_. State **Current** (what happens now, observably) and **Expected** (what should happen). Only then describe the mechanism. Often the stated mechanism turns out to be the wrong one.
 
 ### Requirements are conditions, not intentions
 
-Test each sentence: *could this fail?*
+Test each sentence: _could this fail?_
 
 - ❌ "improve collaboration"
 - ✅ "with the collaboration server unreachable, the editor still opens and saves locally"
 - ✅ "`grep -rE 'excalidraw\.com' excalidraw-app/` returns no runtime URL"
 
-If a sentence contains a verb like *improve, better, robust, clean, optimise* — it is an
-intention, not a contract. Rewrite it.
+If a sentence contains a verb like _improve, better, robust, clean, optimise_ — it is an intention, not a contract. Rewrite it.
 
 ### Bug tickets need a reproduction
 
-For a `bug`: exact steps, the input, the actual result, the expected result. **Cite
-`file:line`.** If you cannot reproduce it, that is a `spike`, not a bug.
+For a `bug`: exact steps, the input, the actual result, the expected result. **Cite `file:line`.** If you cannot reproduce it, that is a `spike`, not a bug.
 
 ### Scale detail to risk
 
 | Risk | Examples here | Required |
-|---|---|---|
+| --- | --- | --- |
 | **Low** | a copy tweak, one-file fix | concise intent + core behaviour contract |
 | **Medium** | a new view, a new setting, store changes | + constraints, operations note |
 | **High** | the collaboration protocol, the export format, anything that owns a network connection | + before/after evidence, rollback criteria, both-theme check |
@@ -126,11 +111,9 @@ Structure quality is about **explicitness, not length**.
 
 ## Splitting
 
-Split when a ticket cannot be stated as one behaviour contract — typically when its
-Requirements contain an "and" joining two independent outcomes.
+Split when a ticket cannot be stated as one behaviour contract — typically when its Requirements contain an "and" joining two independent outcomes.
 
-**Split by behaviour, not by layer.** Record links so the dependency is visible:
-`Blocked by: feature-0003`, `Blocks: feature-0004`.
+**Split by behaviour, not by layer.** Record links so the dependency is visible: `Blocked by: feature-0003`, `Blocks: feature-0004`.
 
 ---
 
@@ -151,9 +134,7 @@ triage → open → in-progress → review → done
 
 **In-progress** only when the ticket passes triage.
 
-**Review** verifies against **declared** boundaries, not inferred intent. If the
-implementation did something the ticket did not sanction, either the code is wrong or the
-ticket was wrong — update the ticket, don't leave the history inconsistent.
+**Review** verifies against **declared** boundaries, not inferred intent. If the implementation did something the ticket did not sanction, either the code is wrong or the ticket was wrong — update the ticket, don't leave the history inconsistent.
 
 **Done** means landed and verified against the Test cases section.
 
@@ -162,7 +143,7 @@ ticket was wrong — update the ticket, don't leave the history inconsistent.
 ## Known anti-patterns
 
 | Anti-pattern | Why it hurts |
-|---|---|
+| --- | --- |
 | Solution-first title | locks the mechanism before the gap is established |
 | "Improve X" / vague verbs | unfalsifiable; nothing to review against |
 | No non-goals | scope expands silently |
@@ -177,16 +158,8 @@ ticket was wrong — update the ticket, don't leave the history inconsistent.
 
 ## This fork's specifics
 
-- **No unconfigured egress.** Nothing contacts an Excalidraw-controlled or third-party host
-  (excalidraw.com backends, Firebase, Sentry, Vercel telemetry, the hosted AI backend) unless
-  the operator configured it. A ticket adding a network call names the host in Constraints.
-  See `tickets/open/feature-0001-uw-*`.
-- **Self-hosted by default** — collaboration, storage and AI point at `zerwizserver` or
-  `localhost`.
-- **Config is never hardcoded** — a port, host, path or credential resolves from env/config
-  with one documented default (`RULES/08`).
-- **Append-only records** — `tickets/`, `RULES/` and `docs/fixes/` are appended to, never
-  rewritten.
-- **Gates:** `yarn test:typecheck`, `yarn test:app --watch=false`, `yarn test:code`,
-  `yarn build:app`, and `./bin/guards/ticket-ids.sh`. A Resolution describes what was run and
-  what it printed; never write "tests pass" without the command.
+- **No unconfigured egress.** Nothing contacts an Excalidraw-controlled or third-party host (excalidraw.com backends, Firebase, Sentry, Vercel telemetry, the hosted AI backend) unless the operator configured it. A ticket adding a network call names the host in Constraints. See `tickets/open/feature-0001-uw-*`.
+- **Self-hosted by default** — collaboration, storage and AI point at `zerwizserver` or `localhost`.
+- **Config is never hardcoded** — a port, host, path or credential resolves from env/config with one documented default (`RULES/08`).
+- **Append-only records** — `tickets/`, `RULES/` and `docs/fixes/` are appended to, never rewritten.
+- **Gates:** `yarn test:typecheck`, `yarn test:app --watch=false`, `yarn test:code`, `yarn build:app`, and `./bin/guards/ticket-ids.sh`. A Resolution describes what was run and what it printed; never write "tests pass" without the command.

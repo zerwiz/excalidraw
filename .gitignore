@@ -27,3 +27,6 @@ dev-dist
 html
 meta*.json
 .claude
+
+# per-install service config — never committed
+server/ttd-bridge/.env

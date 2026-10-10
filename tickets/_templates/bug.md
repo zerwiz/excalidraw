@@ -4,8 +4,7 @@
 
 ## Problem
 
-**Current:** what happens now, observably, with `file:line`.
-**Expected:** what should happen.
+**Current:** what happens now, observably, with `file:line`. **Expected:** what should happen.
 
 ## Reproduction
 
@@ -18,8 +17,7 @@ If you cannot reproduce it, this is a `spike`, not a bug.
 
 ## Impact
 
-**Affected:** who hits it, and how often.
-**Risk if not fixed:** what it costs to leave.
+**Affected:** who hits it, and how often. **Risk if not fixed:** what it costs to leave.
 
 ## Architecture intent
 
@@ -47,4 +45,4 @@ Explicitly excluded.
 
 ## Resolution
 
-*(filled on close)*
+_(filled on close)_

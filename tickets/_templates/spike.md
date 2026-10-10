@@ -29,4 +29,4 @@ Explicitly excluded — a spike is not an implementation.
 
 ## Resolution
 
-*(the answer, with the evidence that produced it)*
+_(the answer, with the evidence that produced it)_

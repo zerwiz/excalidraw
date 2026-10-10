@@ -27,6 +27,13 @@ interface ImportMetaEnv {
   // built-in default.
   VITE_APP_SENTRY_DSN: string;
 
+  // ── Per-install defaults for Settings ──
+  // These seed a FRESH install only; stored settings win once edited.
+  VITE_APP_MODEL_BASE_URL: string;
+  VITE_APP_MODEL: string;
+  VITE_APP_COLLAB_SERVER: string;
+  VITE_APP_TICKETS_API: string;
+
   // Set this flag to false if you want to open the overlay by default
   VITE_APP_COLLAPSE_OVERLAY: string;
 

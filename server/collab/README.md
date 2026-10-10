@@ -70,6 +70,13 @@ yarn test:server        # or: node --test server/collab
 
 - `rooms.test.mjs` — the pure state: join/leave rosters, scene storage (including the
   oversized refusal), the TTL sweep, and that an occupied room is never swept.
+- `access.test.mjs` — tokens (hashing, constant-time comparison, nothing raw on disk),
+  invites (scoped, expired, revoked, unknown), public vs protected, and that the log
+  appends and carries no secret.
+- `access-protocol.test.mjs` — **real clients against a real enforcing server**: a public
+  room admits with nothing; a protected room refuses with nothing and sends no roster,
+  refuses a wrong token, admits a valid token, admits a valid invite, refuses an invite
+  scoped elsewhere; the log holds no token or invite value; enforcement `off` admits all.
 - `protocol.test.mjs` — **two real socket.io clients against a real server** on an
   ephemeral port: `init-room`, `first-in-room`, `new-user`, the roster, encrypted-payload
   relay, that a socket in another room receives nothing, scene replay to the first member
@@ -77,7 +84,48 @@ yarn test:server        # or: node --test server/collab
   that a volatile payload is never persisted, `user-follow` relay, departure announcement,
   malformed room-id refusal, and `/healthz`.
 
-## Follow-up
+## Access and identity (feature-0004)
 
-`feature-0004` builds access control on top of this: named members, invites, and a
-room that only a granted member can enter. The hook for it is the `join-room` handler.
+The server cannot read a room — but it can decide **who may enter one**, and it does,
+server-side. A client cannot opt out by omitting a flag.
+
+**A room is public unless it is listed as protected.** "Shared by link" is therefore a
+visible choice, never the accidental default.
+
+| | |
+|---|---|
+| **Member** | `{handle, displayName, token}` — the **token is stored only as a sha-256 hash**, so the registry can be read without handing out credentials, and comparison is **constant-time** |
+| **Invite** | a code, optionally scoped to one room, with an expiry; revocable |
+| **Refusal** | the client receives `access-denied` with the reason, and **no roster** |
+| **Log** | joins, refusals and revocations are appended — and it carries **no token, no invite value, and never a scene** |
+
+```
+COLLAB_MEMBERS        the registry file (default server/collab/members.json)
+COLLAB_ACCESS_LOG     the append-only membership log
+COLLAB_ENFORCE_ACCESS `off` admits everyone (the pre-0004 behaviour); anything else enforces
+```
+
+### The operator's door
+
+```bash
+node server/collab/members.mjs add anna "Anna Andersson"   # prints the token ONCE
+node server/collab/members.mjs protect room-abc123
+node server/collab/members.mjs invite room-abc123 --ttl-days 3
+node server/collab/members.mjs revoke <code>
+node server/collab/members.mjs list
+```
+
+`add` prints the token once and cannot print it again — only the hash was kept.
+
+### How a client joins a protected room
+
+The protocol is unchanged for a public room. For a protected one the client sends
+credentials as a second argument, which the existing handler ignores when nothing is
+required:
+
+```js
+socket.emit("join-room", roomId, { token });   // or { invite: code }
+```
+
+A missing or wrong credential yields `access-denied` and the socket never joins, so it
+receives no roster and no scene.

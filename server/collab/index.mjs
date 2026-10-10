@@ -22,6 +22,12 @@ import { createServer } from "node:http";
 import { Server } from "socket.io";
 
 import {
+  authorize,
+  loadRegistry,
+  logMembership,
+  readConfig as readAccessConfig,
+} from "./access.mjs";
+import {
   RoomStore,
   isPlausiblePayload,
   isPlausibleRoomId,
@@ -29,9 +35,13 @@ import {
 } from "./rooms.mjs";
 
 const config = readConfig();
+const access = readAccessConfig();
 const store = new RoomStore();
 
-export const createCollabServer = ({ origins = config.allowedOrigins } = {}) => {
+export const createCollabServer = ({
+  origins = config.allowedOrigins,
+  accessConfig = access,
+} = {}) => {
   const httpServer = createServer((req, res) => {
     if (req.url === "/healthz") {
       const payload = JSON.stringify({ ok: true, ...store.stats() });
@@ -60,10 +70,45 @@ export const createCollabServer = ({ origins = config.allowedOrigins } = {}) => 
      *  protocol does not forbid more, so track them and clean up honestly. */
     const joined = new Set();
 
-    socket.on("join-room", (roomId) => {
+    socket.on("join-room", (roomId, credentials) => {
       if (!isPlausibleRoomId(roomId)) {
         return;
       }
+
+      // AUTHORIZATION IS SERVER-SIDE. A room is public unless the registry marks
+      // it protected; then a member token or a room-scoped invite is required.
+      // The client cannot opt out — a refusal here ends the attempt.
+      if (accessConfig.enforcement) {
+        const registry = loadRegistry(accessConfig.registryPath);
+        const decision = authorize(registry, {
+          roomId,
+          token: credentials?.token,
+          invite: credentials?.invite,
+        });
+        if (!decision.ok) {
+          logMembership(accessConfig.logPath, {
+            event: "refused",
+            roomId,
+            socketId: socket.id,
+            reason: decision.reason,
+            // never the token, never an invite code's value
+            hadToken: Boolean(credentials?.token),
+            hadInvite: Boolean(credentials?.invite),
+          });
+          socket.emit("access-denied", { roomId, reason: decision.reason });
+          return;
+        }
+        if (decision.via !== "public") {
+          logMembership(accessConfig.logPath, {
+            event: "joined",
+            roomId,
+            socketId: socket.id,
+            via: decision.via,
+            member: decision.member?.handle ?? null,
+          });
+        }
+      }
+
       joined.add(roomId);
       socket.join(roomId);
 

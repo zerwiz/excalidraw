@@ -75,3 +75,60 @@ room id but never scene content.
 ## Resolution
 
 *(filled on close)*
+## Resolution
+
+**Landed** on `feat/collab-access` (2026-10-10). The last of the seven.
+
+### What was built
+
+`server/collab/access.mjs` — the whole policy, and nothing else:
+
+| Concept | How |
+|---|---|
+| **Member** | `{handle, displayName, token}`. The **token is stored only as a sha-256 hash**, so the registry can be read without handing out credentials. |
+| **Token check** | `timingSafeEqual`, with **every** member compared so the *position* of a match does not leak either. A length mismatch short-circuits — a token's length is not a secret. |
+| **Room policy** | **public unless listed as protected.** "Shared by link" is a visible choice; the accidental default is not "open". |
+| **Invite** | a code, optionally scoped to one room, with an expiry, revocable. |
+| **Failure mode** | a missing or corrupt registry yields *no members and every room public* — it cannot fail towards protecting a room, nor towards admitting one. |
+| **Log** | append-only, via `appendFileSync`; carries **no token, no invite value, and never a scene**. A failed append returns `false` rather than throwing, so a logging fault cannot take a room down. |
+
+`server/collab/index.mjs` — the `join-room` handler now authorizes **before** joining. A
+refusal emits `access-denied` with the reason and returns, so the socket never joins: **no
+roster, no scene**. `COLLAB_ENFORCE_ACCESS=off` restores the pre-0004 behaviour, explicitly.
+
+`server/collab/members.mjs` — the operator's door: `add` (prints the token **once**, because
+only the hash is kept), `invite`, `revoke`, `protect` / `unprotect`, `list`.
+
+**The protocol stays compatible.** A public room still joins with `join-room(roomId)`. A
+protected one passes credentials as a second argument — `join-room(roomId, { token })` or
+`{ invite }` — which the existing handler ignores when nothing is required.
+
+### Verified
+
+- **88 server tests** (`yarn test:server`), up from 57: **23** in `access.test.mjs` and **8** in
+  `access-protocol.test.mjs`, which drives **real socket.io clients against a real enforcing
+  server** on an ephemeral port:
+  - a public room **admits** a client that presents nothing;
+  - a protected room **refuses** one that presents nothing, sends `access-denied`, and sends
+    **no roster**;
+  - a wrong token is refused; a valid member token is admitted; a valid invite is admitted;
+  - an invite scoped to another room is refused;
+  - the membership log contains the joins and refusals and **neither the token nor the invite
+    code**;
+  - `enforcement: false` admits everyone — the documented legacy behaviour.
+- **The operator's door, exercised end to end**: `add anna` printed a token once;
+  `protect room-abc123`; `invite room-abc123 --ttl-days 3`; `list` showed the member, the
+  protected room and the live invite. The written registry contains `"tokenHash"` and **not the
+  token**.
+- `node --check` on both server files; the ticket guard still passes.
+
+### Not done, deliberately
+
+- **No SSO, no OAuth, no external IdP.** Tokens and invites only, as the ticket specifies.
+- **No roles beyond member.** The ticket's Non-goals exclude a hierarchy; the registry has a
+  `role` field reserved and unused rather than half-built.
+- **No client UI for joining a protected room.** The protocol accepts the credentials; wiring a
+  field in the Settings dialog is a UI ticket, not this one.
+- **No revocation of a live session.** Revoking an invite or a member stops the *next* join; the
+  ticket asks for that ("takes effect on their next join") and the live-disconnect half is
+  stated here as not done rather than implied.

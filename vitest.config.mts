@@ -1,6 +1,6 @@
 import path from "path";
 
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -74,6 +74,10 @@ export default defineConfig({
   },
   //@ts-ignore
   test: {
+    // `server/` holds Node-native services tested with `node --test`
+    // (see `yarn test:bridge`). Vitest must not collect those files: they
+    // import `node:test`, which vitest cannot run.
+    exclude: [...configDefaults.exclude, "server/**"],
     // Since hooks are running in stack in v2, which means all hooks run serially whereas
     // we need to run them in parallel
     sequence: {

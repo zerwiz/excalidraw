@@ -9,6 +9,8 @@ import {
   TTDStreamFetch,
 } from "@excalidraw/excalidraw";
 import { getDataURL } from "@excalidraw/excalidraw/data/blob";
+import { FilledButton } from "@excalidraw/excalidraw/components/FilledButton";
+import { RequestError } from "@excalidraw/excalidraw/errors";
 import { safelyParseJSON } from "@excalidraw/common";
 
 import type { StreamChunk } from "@excalidraw/excalidraw";
@@ -16,8 +18,33 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 import { TTDIndexedDBAdapter } from "../data/TTDStorage";
 import { ENDPOINTS } from "../endpoints";
-import { useAtomValue } from "../app-jotai";
-import { settingsAtom } from "../data/settingsState";
+import { useAtom, useAtomValue } from "../app-jotai";
+import { settingsAtom, settingsDialogStateAtom } from "../data/settingsState";
+
+const NOT_CONFIGURED_MESSAGE =
+  "No model is configured. Connect one in Settings — a local llama.cpp, Claude, " +
+  "or OpenCode Zen — and this panel will use it.";
+
+/**
+ * The panel is shown even with no model, so the reason is stated and the door
+ * to Settings is one click away — rather than a hidden feature with no
+ * explanation. No request is made in this state.
+ */
+const NotConfiguredNotice = () => {
+  const [, setSettingsDialogState] = useAtom(settingsDialogStateAtom);
+  return (
+    <div className="chat-interface__welcome-screen__welcome-message">
+      <h3>No model configured</h3>
+      <p>{NOT_CONFIGURED_MESSAGE}</p>
+      <FilledButton
+        size="medium"
+        onClick={() => setSettingsDialogState({ isOpen: true })}
+      >
+        Open Settings
+      </FilledButton>
+    </div>
+  );
+};
 
 export const AIComponents = ({
   excalidrawAPI,
@@ -28,10 +55,18 @@ export const AIComponents = ({
   const settings = useAtomValue(settingsAtom);
   const aiBackend = settings?.aiBackend ?? ENDPOINTS.aiBackend;
 
-  // No backend configured: render nothing rather than calling a hosted default.
-  // feature-0005 adds the "no model configured" state + Settings link.
   if (!aiBackend) {
-    return null;
+    return (
+      <TTDDialog
+        onTextSubmit={async () => ({
+          // Refuse rather than send anywhere: there is no model to send to.
+          error: new RequestError({ message: NOT_CONFIGURED_MESSAGE }),
+          generatedResponse: null,
+        })}
+        renderWelcomeScreen={() => <NotConfiguredNotice />}
+        persistenceAdapter={TTDIndexedDBAdapter}
+      />
+    );
   }
 
   return (

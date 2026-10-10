@@ -1,0 +1,128 @@
+.settings-dialog {
+  .settings-dialog__intro {
+    margin-bottom: 1rem;
+    color: var(--text-primary-color);
+    opacity: 0.85;
+
+    p {
+      margin: 0 0 0.5rem;
+    }
+  }
+
+  .settings-dialog__local-only {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background-color: var(--color-surface-low);
+    border: 1px solid var(--color-surface-lowest);
+    opacity: 1;
+  }
+
+  .settings-dialog__section {
+    margin-bottom: 1.5rem;
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+  }
+
+  .settings-dialog__empty {
+    opacity: 0.7;
+    font-style: italic;
+  }
+
+  .settings-dialog__entry {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-radius: 0.5rem;
+    background-color: var(--color-surface-lowest);
+    border: 1px solid var(--color-surface-low);
+  }
+
+  .settings-dialog__entry-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .settings-dialog__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+
+    select,
+    .settings-dialog__input {
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--dialog-border-color);
+      background-color: var(--island-bg-color);
+      color: var(--text-primary-color);
+      font-family: inherit;
+      font-size: 0.875rem;
+    }
+  }
+
+  .settings-dialog__label {
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+
+  .settings-dialog__hint {
+    margin: 0;
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+
+  .settings-dialog__remove {
+    margin-top: 1.25rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-primary-color);
+    opacity: 0.6;
+    padding: 0.25rem;
+    line-height: 0;
+
+    &:hover {
+      opacity: 1;
+      color: var(--color-danger);
+    }
+
+    svg {
+      width: 1rem;
+      height: 1rem;
+    }
+  }
+
+  .settings-dialog__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .settings-dialog__result {
+    font-size: 0.8125rem;
+
+    &.is-ok {
+      color: var(--color-success);
+    }
+
+    &.is-error {
+      color: var(--color-danger);
+    }
+  }
+}

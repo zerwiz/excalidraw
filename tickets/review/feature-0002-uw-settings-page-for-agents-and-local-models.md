@@ -132,3 +132,44 @@ and no scene data is affected.
 ## Resolution
 
 *(filled on close)*
+## Resolution
+
+**Landed** on `feat/settings-models` (2026-10-10).
+
+### The seam
+
+| Module | What it is |
+|---|---|
+| `excalidraw-app/data/modelProviders.ts` | the **provider shapes** — kinds, auth headers, endpoint builders, discovery, test connection, A2A card fetch. Pure logic + injected `fetch`, so it is testable without a browser or a network. |
+| `excalidraw-app/data/settingsStore.ts` | the **versioned store** — `migrateSettings`, load/save (localStorage), `redactProvider`. |
+| `excalidraw-app/data/settingsState.ts` | the jotai atoms (`settingsAtom`, `settingsDialogStateAtom`). |
+| `excalidraw-app/components/SettingsDialog.tsx` (+ `.scss`) | the surface: Models · Agents · Servers. |
+
+### Requirements, met
+
+- **Profile and surface.** A Settings item in the main menu opens the dialog; it renders under both themes (uses the app's CSS variables, no hardcoded colours).
+- **Three shapes, honestly.** `llama.cpp` · `openai-compatible` · `openai-responses` · `anthropic` · `opencode-zen`. Anthropic sends `x-api-key` + `anthropic-version` and **never** `Authorization`; the others send bearer only when a key is stored.
+- **Discovery before typing.** `GET {base}/models` populates a picker for every discoverable kind; a failed discovery shows the exact status.
+- **Shape follows the model.** `opencode-zen` exposes a shape selector, and the chosen shape is stored **with the entry** — the gateway serves `/chat/completions`, `/responses` and `/messages` from one base URL.
+- **Agents.** Test connection fetches `{base}/.well-known/agent-card.json`; an unparseable card is reported not-connected.
+- **Storage and honesty.** Everything persists to `localStorage`, locally only. A stored key **round-trips** (or the provider stops working) but is **never rendered back** — the field starts empty and a test asserts the redacted view contains no key material.
+- **Empty means local-only.** An empty store shows the explicit local-only state; no feature routes through an unconfigured host.
+- **The panel names its model.** `AI.tsx` resolves its backend from Settings first (`settings.aiBackend ?? ENDPOINTS.aiBackend`); `Collab.tsx` does the same for the room server.
+
+### Verified — in a real browser, and in the suite
+
+- **Tests: 31 new** (`modelProviders.test.ts` 20, `settingsStore.test.ts` 11) covering header shapes, discovery success/failure/no-base-URL/empty-catalogue/network-error, the 404-vs-reachable distinction, `max_tokens` + top-level `system` for the messages shape, agent-card parsing, migration of garbage and half-written stores, and that `redactProvider` never leaks a key.
+- **Full suite: 144 files, 2489 tests passed**, 47 skipped, 1 todo.
+- `yarn test:typecheck` clean · `yarn build:app` built in 22.65s · eslint clean.
+- **Live, against this machine's real rail** (Chrome, page `localhost:4172`):
+  - the main menu shows **Settings** and no Excalidraw+ / Sign-up item;
+  - Settings opens with the local-only state and no model connected;
+  - adding a model defaulted to `http://localhost:8080/v1`, and **List models returned “26 models.”**, populating the picker with real ids — `lfm2.5-8b-a1b-3050@q4_0`, `qwen3-coder-30b-a3b-3050@iq2_m`, `nomic-embed-text-v1.5@embed`, …
+  - the network log shows the discovery call at `GET http://localhost:8080/v1/models` **[200]**, and **every host contacted in the whole session was `localhost`** (863 requests) — no `excalidraw.com`, no Firebase, no Sentry.
+  - screenshot: `/tmp/excalidraw-settings-verified.png`
+
+### Not done, deliberately
+
+- **No team/share of settings.** Settings are per-machine, as the ticket specifies; shared team credentials are the vault's job, not the whiteboard's.
+- **No gateway.** The ticket stores *which* model; policy, attribution and masking belong to the mediated gateway in the team-vault design. `buildChatRequest` is deliberately separate from sending so that gateway can consume the same shape later.
+- **`opencode-zen` shape is operator-chosen, not catalogue-derived** — `GET /v1/models` does not declare a path per model, so the UI asks rather than guessing.

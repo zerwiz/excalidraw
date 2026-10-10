@@ -1,6 +1,7 @@
-const { app, BrowserWindow, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
+
+const { app, BrowserWindow, shell } = require("electron");
 
 // GPU process segfaults on Wayland + NVIDIA (Electron 33.x).
 // Disable the GPU process via command-line switches before app.whenReady().
@@ -8,7 +9,7 @@ app.commandLine.appendSwitch("disable-gpu");
 app.commandLine.appendSwitch("disable-gpu-compositing");
 app.commandLine.appendSwitch("disable-gpu-sandbox");
 
-const PORT = process.env.EXCALIDRAW_PORT || 4172;
+const PORT = process.env.EXCALIDRAW_PORT || 7311;
 const URL = `http://localhost:${PORT}`;
 const LOG_FILE = path.join(app.getPath("userData"), "debug.log");
 
@@ -23,6 +24,7 @@ function log(msg) {
   } catch {
     /* silently drop — logging must never break the app */
   }
+  // eslint-disable-next-line no-console -- Electron writes this to the app log
   console.log(line.trim());
 }
 

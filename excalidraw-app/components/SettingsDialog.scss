@@ -126,3 +126,19 @@
     }
   }
 }
+
+/* The save state. A settings write that fails silently looks exactly like one
+   that worked — so the state is always on screen, and a failure is red. */
+.settings-dialog {
+  .settings-dialog__save {
+    margin: 0.25rem 0 0;
+    font-size: 0.75rem;
+    opacity: 0.75;
+
+    &.is-error {
+      opacity: 1;
+      color: var(--color-danger);
+      font-weight: 600;
+    }
+  }
+}

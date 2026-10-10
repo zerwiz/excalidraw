@@ -34,16 +34,84 @@ export type Settings = {
    * nothing to read from.
    */
   ticketsApi?: string;
+  /**
+   * The address a ROOM LINK carries — the host the team reaches, when that is
+   * not where the operator is sitting. Unset means "this browser", which is
+   * honest and never points anyone at a server we do not run.
+   */
+  publicUrl?: string;
 };
 
+/** The empty shape — what a migration falls back to, and the local-only state. */
 export const DEFAULT_SETTINGS: Settings = {
   version: SETTINGS_VERSION,
   models: [],
   agents: [],
 };
 
+/**
+ * What a fresh install STARTS with: the empty shape, plus whatever the
+ * environment supplied. Seeded once — the moment the operator edits anything,
+ * the stored settings win and the environment is never consulted again.
+ */
+export const initialSettings = (): Settings => ({
+  ...DEFAULT_SETTINGS,
+  ...envDefaults(),
+});
+
 const isString = (value: unknown): value is string =>
   typeof value === "string" && value.trim() !== "";
+
+/**
+ * What a FRESH install starts with, read from the environment.
+ *
+ * Nothing here is a real host: these are the operator's own values, supplied per
+ * install through `.env.local` (or the build environment), so two machines can
+ * point at two different rails without a line of code changing. An unset value
+ * means "not configured", which is the local-only state — never a hosted default.
+ */
+const envDefaults = () => {
+  const modelBaseURL = isString(import.meta.env.VITE_APP_MODEL_BASE_URL)
+    ? normalizeBaseURL(import.meta.env.VITE_APP_MODEL_BASE_URL)
+    : "";
+  const model = isString(import.meta.env.VITE_APP_MODEL)
+    ? import.meta.env.VITE_APP_MODEL.trim()
+    : "";
+
+  // A base URL with no model id is still worth seeding: the operator opens
+  // Settings, presses "List models", and picks. That is the intended flow.
+  const models: ModelProvider[] = modelBaseURL
+    ? [
+        {
+          id: "from-env",
+          kind: "llama.cpp",
+          name: "Local llama.cpp (from env)",
+          baseURL: modelBaseURL,
+          ...(model ? { model } : {}),
+        },
+      ]
+    : [];
+
+  return {
+    models,
+    ...(isString(import.meta.env.VITE_APP_COLLAB_SERVER)
+      ? {
+          collabServer: normalizeBaseURL(
+            import.meta.env.VITE_APP_COLLAB_SERVER,
+          ),
+        }
+      : {}),
+    ...(isString(import.meta.env.VITE_APP_AI_BACKEND)
+      ? { aiBackend: normalizeBaseURL(import.meta.env.VITE_APP_AI_BACKEND) }
+      : {}),
+    ...(isString(import.meta.env.VITE_APP_TICKETS_API)
+      ? { ticketsApi: normalizeBaseURL(import.meta.env.VITE_APP_TICKETS_API) }
+      : {}),
+    ...(isString(import.meta.env.VITE_APP_PUBLIC_URL)
+      ? { publicUrl: normalizeBaseURL(import.meta.env.VITE_APP_PUBLIC_URL) }
+      : {}),
+  };
+};
 
 const asArray = <T>(value: unknown): T[] =>
   Array.isArray(value) ? (value as T[]) : [];
@@ -98,6 +166,9 @@ export const migrateSettings = (input: unknown): Settings => {
     ...(isString(raw.ticketsApi)
       ? { ticketsApi: normalizeBaseURL(raw.ticketsApi) }
       : {}),
+    ...(isString(raw.publicUrl)
+      ? { publicUrl: normalizeBaseURL(raw.publicUrl) }
+      : {}),
   };
 };
 
@@ -117,18 +188,19 @@ export const createId = (): string => {
 
 export const loadSettings = (): Settings => {
   if (typeof localStorage === "undefined") {
-    return { ...DEFAULT_SETTINGS };
+    return initialSettings();
   }
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) {
-      return { ...DEFAULT_SETTINGS };
+      // Nothing stored: this install's environment decides what it starts with.
+      return initialSettings();
     }
     return migrateSettings(JSON.parse(raw));
   } catch (error) {
     // A corrupt store must not break the app: fall back to local-only.
     console.warn("Could not read stored settings; using defaults.", error);
-    return { ...DEFAULT_SETTINGS };
+    return initialSettings();
   }
 };
 

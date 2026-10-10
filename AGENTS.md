@@ -5,8 +5,7 @@
 
 ## Tickets — work starts from a contract
 
-This fork tracks work as files in `tickets/`, not a SaaS backlog. **Never start work that
-already has a ticket, and never fix an adjacent problem inline — file it.**
+This fork tracks work as files in `tickets/`, not a SaaS backlog. **Never start work that already has a ticket, and never fix an adjacent problem inline — file it.**
 
 ```
 ticket_flow[5]{step,action,where}:
@@ -17,8 +16,7 @@ ticket_flow[5]{step,action,where}:
   "5","close","verify against Test cases, git mv to review/, fill Resolution"
 ```
 
-The contract is five sections — Problem, Impact, Requirements, Non-goals, Test cases — plus
-**architecture intent** and **constraints**. Read:
+The contract is five sections — Problem, Impact, Requirements, Non-goals, Test cases — plus **architecture intent** and **constraints**. Read:
 
 - `tickets/README.md` — the operating model
 - `.agents/skills/tickets/SKILL.md` — how to write, triage, split and close
@@ -26,8 +24,7 @@ The contract is five sections — Problem, Impact, Requirements, Non-goals, Test
 - `docs/OWNERS.md` — who owns which surface
 - `tickets/_templates/` — `bug` · `feature` · `chore` · `spike`
 
-Naming: `<type>-<NNNN>-<devid>-<slug>.md`, dev id from `tickets/DEVIDS`. Check with
-`./bin/guards/ticket-ids.sh`.
+Naming: `<type>-<NNNN>-<devid>-<slug>.md`, dev id from `tickets/DEVIDS`. Check with `./bin/guards/ticket-ids.sh`.
 
 ## This fork's house rules
 

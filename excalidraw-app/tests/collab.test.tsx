@@ -27,25 +27,22 @@ Object.defineProperty(window, "crypto", {
   },
 });
 
-vi.mock("../../excalidraw-app/data/firebase.ts", () => {
-  const loadFromFirebase = async () => null;
-  const saveToFirebase = () => {};
-  const isSavedToFirebase = () => true;
-  const loadFilesFromFirebase = async () => ({
+vi.mock("../../excalidraw-app/data/roomFiles.ts", () => {
+  // The scene half is gone: the room server persists the scene, so there is
+  // nothing to stub for it. Only the file store remains.
+  const loadRoomFiles = async () => ({
     loadedFiles: [],
-    erroredFiles: [],
-  });
-  const saveFilesToFirebase = async () => ({
-    savedFiles: new Map(),
     erroredFiles: new Map(),
+  });
+  const saveRoomFiles = async () => ({
+    savedFiles: [],
+    erroredFiles: [],
   });
 
   return {
-    loadFromFirebase,
-    saveToFirebase,
-    isSavedToFirebase,
-    loadFilesFromFirebase,
-    saveFilesToFirebase,
+    loadRoomFiles,
+    saveRoomFiles,
+    hasRoomFileStore: () => true,
   };
 });
 

@@ -122,10 +122,10 @@ export class RoomStore {
 }
 
 export const readConfig = (env = process.env) => ({
-  port: Number(env.COLLAB_PORT ?? 3002),
+  port: Number(env.COLLAB_PORT ?? 7312),
   host: env.COLLAB_HOST ?? "127.0.0.1",
   allowedOrigins: (
-    env.COLLAB_ORIGINS ?? "http://localhost:4172,http://127.0.0.1:4172"
+    env.COLLAB_ORIGINS ?? "http://localhost:7311,http://127.0.0.1:7311"
   )
     .split(",")
     .map((origin) => origin.trim())

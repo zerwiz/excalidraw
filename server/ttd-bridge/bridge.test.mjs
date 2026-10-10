@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  DEFAULT_SYSTEM_PROMPT,
   buildUpstreamRequest,
+  createFenceFilter,
+  withSystemPrompt,
   mapFinishReason,
   normalizeBaseURL,
   parseUpstreamChunk,
@@ -176,12 +179,85 @@ describe("readConfig", () => {
   it("defaults to localhost and refuses to invent a model host", () => {
     const config = readConfig({});
     assert.equal(config.host, "127.0.0.1");
-    assert.equal(config.port, 4173);
+    assert.equal(config.port, 7313);
     assert.equal(config.modelBaseURL, "");
   });
 
   it("does not default the origin allow-list to a public host", () => {
     const config = readConfig({});
     assert.ok(config.allowedOrigins.every((origin) => origin.includes("localhost") || origin.includes("127.0.0.1")));
+  });
+});
+
+describe("the instruction the model is given", () => {
+  it("prepends a system message demanding bare Mermaid", () => {
+    const messages = withSystemPrompt([{ role: "user", content: "a flowchart" }]);
+    assert.equal(messages.length, 2);
+    assert.equal(messages[0].role, "system");
+    assert.match(messages[0].content, /no code\s+fences/i);
+    assert.match(messages[0].content, /Mermaid/);
+    // the panel's own message survives untouched
+    assert.deepEqual(messages[1], { role: "user", content: "a flowchart" });
+  });
+
+  it("does not double up when the caller already sent a system message", () => {
+    const messages = withSystemPrompt([
+      { role: "system", content: "mine" },
+      { role: "user", content: "hi" },
+    ]);
+    assert.equal(messages.length, 2);
+    assert.equal(messages[0].content, "mine");
+  });
+
+  it("adds nothing when the prompt is switched off", () => {
+    assert.deepEqual(withSystemPrompt([{ role: "user", content: "hi" }], ""), [
+      { role: "user", content: "hi" },
+    ]);
+  });
+
+  it("has a default prompt that names the failure it prevents", () => {
+    assert.match(DEFAULT_SYSTEM_PROMPT, /Mermaid/);
+  });
+});
+
+describe("the fence filter", () => {
+  const feed = (chunks) => {
+    const filter = createFenceFilter();
+    const out = chunks.map((chunk) => filter.push(chunk)).join("") + filter.end();
+    return out;
+  };
+
+  it("passes a bare diagram through untouched", () => {
+    assert.equal(feed(["flowchart TD\n", "  A --> B"]), "flowchart TD\n  A --> B");
+  });
+
+  it("strips a leading fence when it arrives in pieces", () => {
+    assert.equal(feed(["``", "`mermaid\n", "flowchart TD\n", "A --> B"]), "flowchart TD\nA --> B");
+  });
+
+  it("strips a trailing fence, including one split across deltas", () => {
+    // The closing fence arrives in two pieces and the trailing newline goes with
+    // it — the reply handed to the panel is bare Mermaid, nothing more.
+    assert.equal(feed(["flowchart TD\nA --> B\n", "``", "`"]), "flowchart TD\nA --> B");
+  });
+
+  it("strips both fences at once", () => {
+    assert.equal(
+      feed(["```mermaid\n", "flowchart TD\nA --> B\n", "```"]),
+      "flowchart TD\nA --> B",
+    );
+  });
+
+  it("does not hold back a reply that merely starts with a backtick-ish word", () => {
+    // No fence: the first characters are content, and must not be eaten.
+    assert.equal(feed(["flow", "chart TD"]), "flowchart TD");
+  });
+
+  it("reports whether it ever saw content", () => {
+    const filter = createFenceFilter();
+    filter.push("```mermaid\n");
+    assert.equal(filter.sawContent, false);
+    filter.push("flowchart TD");
+    assert.equal(filter.sawContent, true);
   });
 });

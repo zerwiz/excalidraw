@@ -37,7 +37,8 @@ import {
 import { ENDPOINTS, EndpointNotConfiguredError } from "../endpoints";
 
 import { encodeFilesForUpload } from "./FileManager";
-import { saveFilesToFirebase } from "./firebase";
+import { saveRoomFiles } from "./roomFiles";
+import { buildRoomLink } from "./roomLink";
 
 import type { WS_SUBTYPES } from "../app_constants";
 
@@ -161,7 +162,9 @@ export const getCollaborationLink = (data: {
   roomId: string;
   roomKey: string;
 }) => {
-  return `${window.location.origin}${window.location.pathname}#room=${data.roomId},${data.roomKey}`;
+  // A room link is only worth anything if somebody else can open it, so the base
+  // comes from the install's configured public address, not from this browser.
+  return buildRoomLink(data.roomId, data.roomKey);
 };
 
 /**
@@ -296,7 +299,7 @@ export const exportToBackend = async (
       url.hash = `json=${json.id},${encryptionKey}`;
       const urlString = url.toString();
 
-      await saveFilesToFirebase({
+      await saveRoomFiles({
         prefix: `/files/shareLinks/${json.id}`,
         files: filesToUpload,
       });

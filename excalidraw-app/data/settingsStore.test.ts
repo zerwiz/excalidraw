@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_SETTINGS,
   SETTINGS_STORAGE_KEY,
+  initialSettings,
   loadSettings,
   migrateSettings,
   redactProvider,
@@ -72,10 +73,10 @@ describe("migrateSettings", () => {
 
   it("normalises an optional collab server and ai backend", () => {
     const migrated = migrateSettings({
-      collabServer: "http://localhost:3002/",
+      collabServer: "http://localhost:7312/",
       aiBackend: "",
     });
-    expect(migrated.collabServer).toBe("http://localhost:3002");
+    expect(migrated.collabServer).toBe("http://localhost:7312");
     expect(migrated.aiBackend).toBeUndefined();
   });
 });
@@ -96,8 +97,23 @@ describe("redactProvider", () => {
 });
 
 describe("load/save round trip", () => {
-  it("starts empty, which means local-only", () => {
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
+  it("starts from THIS INSTALL — the environment seeds a fresh store", () => {
+    // Not DEFAULT_SETTINGS: an empty store is seeded from the environment, which
+    // is how two installs point at two rails with no code change. The empty
+    // floor is what a MIGRATION falls back to, not what a fresh install gets.
+    expect(loadSettings()).toEqual(initialSettings());
+  });
+
+  it("keeps the empty floor for migration, never the environment", () => {
+    expect(DEFAULT_SETTINGS).toEqual({ version: 1, models: [], agents: [] });
+    expect(migrateSettings(null)).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it("does not re-seed from the environment once anything is stored", () => {
+    // The operator emptied every field on purpose; the environment must not
+    // quietly put them back.
+    saveSettings({ version: 1, models: [], agents: [] });
+    expect(loadSettings()).toEqual({ version: 1, models: [], agents: [] });
   });
 
   it("persists and reloads", () => {
@@ -113,18 +129,18 @@ describe("load/save round trip", () => {
         },
       ],
       agents: [{ id: "a", name: "scout", baseURL: "http://localhost:8301" }],
-      collabServer: "http://localhost:3002",
+      collabServer: "http://localhost:7312",
     };
     saveSettings(settings);
     const loaded = loadSettings();
     expect(loaded.models).toHaveLength(1);
     expect(loaded.models[0].model).toBe("lfm");
     expect(loaded.agents[0].name).toBe("scout");
-    expect(loaded.collabServer).toBe("http://localhost:3002");
+    expect(loaded.collabServer).toBe("http://localhost:7312");
   });
 
-  it("survives a corrupt store by falling back to local-only", () => {
+  it("survives a corrupt store by falling back to this install's defaults", () => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, "{ not json");
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
+    expect(loadSettings()).toEqual(initialSettings());
   });
 });

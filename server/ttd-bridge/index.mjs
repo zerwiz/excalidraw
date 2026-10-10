@@ -7,7 +7,7 @@
  *   node server/ttd-bridge/index.mjs
  *
  * Then set "AI text-to-diagram backend" to this bridge's URL in Settings
- * (http://127.0.0.1:4173).
+ * (http://127.0.0.1:7313).
  *
  * It binds localhost by default. It logs timing and token counts — never a
  * prompt, never a response body, never a credential.
@@ -17,10 +17,12 @@ import { createServer } from "node:http";
 
 import {
   buildUpstreamRequest,
+  createFenceFilter,
   readConfig,
   sse,
   translateUpstream,
   ttdError,
+  withSystemPrompt,
 } from "./bridge.mjs";
 
 const config = readConfig();
@@ -87,13 +89,17 @@ const handleTextToDiagram = async (req, res) => {
   const controller = new AbortController();
   req.on("close", () => controller.abort());
 
+  // The panel sends the user's words; the bridge adds the instruction that
+  // makes the reply parseable as Mermaid.
+  const instructed = withSystemPrompt(messages, config.systemPrompt);
+
   const { url, init } = buildUpstreamRequest(
     {
       baseURL: config.modelBaseURL,
       model: payload.model || config.model,
       apiKey: config.modelApiKey,
     },
-    { messages, signal: controller.signal },
+    { messages: instructed, signal: controller.signal },
   );
 
   res.writeHead(200, {
@@ -107,7 +113,9 @@ const handleTextToDiagram = async (req, res) => {
 
   try {
     const upstream = await fetch(url, init);
+    const fenceFilter = createFenceFilter();
     for await (const frame of translateUpstream(upstream, {
+      transform: fenceFilter,
       onUsage: (usage) => {
         tokens = usage;
       },

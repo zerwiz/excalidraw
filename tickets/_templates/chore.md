@@ -4,13 +4,11 @@
 
 ## Problem
 
-**Current:** what exists today, and why it costs us.
-**Expected:** the tidier state.
+**Current:** what exists today, and why it costs us. **Expected:** the tidier state.
 
 ## Impact
 
-**Affected:** who is slowed down by the current state.
-**Risk if not built:** what continuing to live with it costs.
+**Affected:** who is slowed down by the current state. **Risk if not built:** what continuing to live with it costs.
 
 ## Architecture intent
 
@@ -38,4 +36,4 @@ Explicitly excluded.
 
 ## Resolution
 
-*(filled on close)*
+_(filled on close)_

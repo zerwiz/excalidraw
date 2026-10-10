@@ -15,16 +15,22 @@ import type { StreamChunk } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 
 import { TTDIndexedDBAdapter } from "../data/TTDStorage";
-import { ENDPOINTS, features } from "../endpoints";
+import { ENDPOINTS } from "../endpoints";
+import { useAtomValue } from "../app-jotai";
+import { settingsAtom } from "../data/settingsState";
 
 export const AIComponents = ({
   excalidrawAPI,
 }: {
   excalidrawAPI: ExcalidrawImperativeAPI;
 }) => {
-  // No AI backend configured: render nothing rather than calling a hosted
-  // default. feature-0005 adds the "no model configured" state + Settings link.
-  if (!features.ai) {
+  // The AI backend resolves from Settings first; an env var seeds a default only.
+  const settings = useAtomValue(settingsAtom);
+  const aiBackend = settings?.aiBackend ?? ENDPOINTS.aiBackend;
+
+  // No backend configured: render nothing rather than calling a hosted default.
+  // feature-0005 adds the "no model configured" state + Settings link.
+  if (!aiBackend) {
     return null;
   }
 
@@ -58,7 +64,7 @@ export const AIComponents = ({
           const textFromFrameChildren = getTextFromElements(children);
 
           const response = await fetch(
-            `${ENDPOINTS.aiBackend}/v1/ai/diagram-to-code/generate-streaming`,
+            `${aiBackend}/v1/ai/diagram-to-code/generate-streaming`,
             {
               method: "POST",
               headers: {
@@ -158,7 +164,7 @@ export const AIComponents = ({
           const { onChunk, onStreamCreated, signal, messages } = props;
 
           const result = await TTDStreamFetch({
-            url: `${ENDPOINTS.aiBackend}/v1/ai/text-to-diagram/chat-streaming`,
+            url: `${aiBackend}/v1/ai/text-to-diagram/chat-streaming`,
             messages,
             onChunk,
             onStreamCreated,

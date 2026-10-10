@@ -53,7 +53,8 @@ import type {
 import type { Mutable, ValueOf } from "@excalidraw/common/utility-types";
 
 import { appJotaiStore, atom } from "../app-jotai";
-import { ENDPOINTS, features } from "../endpoints";
+import { ENDPOINTS } from "../endpoints";
+import { settingsAtom } from "../data/settingsState";
 import {
   CURSOR_SYNC_TIMEOUT,
   FILE_UPLOAD_MAX_BYTES,
@@ -509,8 +510,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     // No collaboration server configured: do not open a socket anywhere. This
     // fork contacts no hosted service by default, and the inherited default was
-    // an Excalidraw-run server.
-    if (!features.collaboration) {
+    // an Excalidraw-run server. Settings wins over the env seed.
+    const collabServer =
+      appJotaiStore.get(settingsAtom)?.collabServer ?? ENDPOINTS.collabServer;
+
+    if (!collabServer) {
       this.setIsCollaborating(false);
       this.setErrorDialog(
         "Collaboration is not configured. Set a collaboration server in Settings.",
@@ -543,7 +547,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     try {
       this.portal.socket = this.portal.open(
-        socketIOClient(ENDPOINTS.collabServer!, {
+        socketIOClient(collabServer, {
           transports: ["websocket", "polling"],
         }),
         roomId,

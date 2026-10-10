@@ -49,3 +49,35 @@ Not a public SaaS; not multi-tenant; not autoscaling; not a CI/CD pipeline; not 
 ## Resolution
 
 _(filled on close)_
+
+---
+
+## Status 2026-10-10 — deployed, and blocked on three DNS records
+
+**Deployed and running** on `zerwizserver` (commit `da31dc71`, `server/deploy/install.sh`): `excalidraw-app` (`:7311`), `excalidraw-collab` (`:7312`) and `excalidraw-board` (`:7314`) are **systemd user services**, enabled and answering. The board serves the real ledger — **20 tickets** — over CORS. The bridge is deliberately not deployed (no model on that host).
+
+**The finding that reshaped the design.** A browser exposes `crypto.subtle` **only in a secure context**, and a room key is generated with it. Over plain HTTP the collaboration dialog renders and **every button throws**:
+
+```
+http://<ip>:7311 → "Cannot read properties of undefined (reading 'generateKey')"
+```
+
+So plain HTTP **cannot** run collaboration at all. `tailscale serve` was tried and abandoned — it certifies the **tailnet name**, and the team has no tailnet access. The public door is a **Cloudflare tunnel** (`excalidraw{, -collab, -board}.zerwiz.org`), this server's own pattern, which also supplies real TLS. The services therefore bind **loopback**, with the tunnel as the only door.
+
+**What is required from the operator, and nothing else:**
+
+1. **Three DNS records point at the wrong tunnel.** The first `cloudflared tunnel route dns` matched another tunnel's name (the CLI reported a different tunnel id, and the records were created against it). `CLOUDFLARE_API_TOKEN` is **empty in the vault** — a documented state — so this is a dashboard/API action:
+
+   | Record | Should be |
+   | --- | --- |
+   | `excalidraw.zerwiz.org` | CNAME → `<excalidraw-tunnel-uuid>.cfargotunnel.com`, proxied |
+   | `excalidraw-collab.zerwiz.org` | CNAME → `<excalidraw-tunnel-uuid>.cfargotunnel.com`, proxied |
+   | `excalidraw-board.zerwiz.org` | CNAME → `<excalidraw-tunnel-uuid>.cfargotunnel.com`, proxied |
+
+   The tunnel is `excalidraw`, id `9cc48e09-a7cd-4db8-81a9-192a4197279b`, with `cloudflared-excalidraw.service` already running and four connections registered.
+
+2. **A decision, not a task: the app will be PUBLIC.** Rooms stay end-to-end encrypted and a protected room still demands a token (`feature-0004`), but anyone with the URL can open the app. **Cloudflare Access** in front of `excalidraw.zerwiz.org` is the natural gate — same account, same tunnel.
+
+**Not proven:** any collaboration over HTTPS, because no public door resolves yet. Everything up to the door is verified; the door itself is not.
+
+**Four traps found and recorded in `server/deploy/README.md`:** resolving `node` locally bakes the laptop's path (`203/EXEC`); `enable --now` is a **no-op** for a running unit so a re-deploy kept the old environment silently; `lsof -ti` matches a client socket; and the board answered `200` over an **empty shelf** until the ledger was copied.

@@ -100,6 +100,12 @@ export const loadRegistry = (path) => {
 export const isRoomProtected = (registry, roomId) =>
   registry.protectedRooms.includes(roomId);
 
+/** The member a handle names, or `null`. A handle is how a live session is revoked. */
+export const findMemberByHandle = (registry, handle) =>
+  isString(handle)
+    ? registry.members.find((member) => member.handle === handle) ?? null
+    : null;
+
 export const findMemberByToken = (registry, token) => {
   if (!isString(token)) {
     return null;

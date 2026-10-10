@@ -21,8 +21,12 @@ import { createServer } from "node:http";
 
 import { Server } from "socket.io";
 
+import { watch } from "node:fs";
+
 import {
   authorize,
+  findMemberByHandle,
+  isRoomProtected,
   loadRegistry,
   logMembership,
   readConfig as readAccessConfig,
@@ -194,6 +198,11 @@ export const createCollabServer = ({
           return;
         }
         if (decision.via !== "public") {
+          // Remember the member on the SOCKET: a revocation has to be able to
+          // find a live session, and the socket is where a live session lives.
+          if (decision.member?.handle) {
+            socket.data.member = decision.member.handle;
+          }
           logMembership(accessConfig.logPath, {
             event: "joined",
             roomId,
@@ -281,7 +290,70 @@ export const createCollabServer = ({
     socket.on("disconnect", cleanup);
   });
 
-  return { io, httpServer, store };
+  /**
+   * Ends the live sessions of members who are no longer in the registry.
+   *
+   * Revoking a member used to take effect on their **next** join, which is a
+   * surprising answer when the person is on the canvas now. The registry file IS
+   * the trigger: when it changes, every socket that joined as a member is checked,
+   * and one whose member has gone is disconnected from its protected room with the
+   * rest told the new roster.
+   *
+   * Revoking an INVITE deliberately does not disconnect anyone: an invite is a
+   * door, not a leash, and this only ever looks at members.
+   */
+  const revokeVanishedMembers = () => {
+    let registry;
+    try {
+      registry = loadRegistry(accessConfig.registryPath);
+    } catch {
+      return 0;
+    }
+    let revoked = 0;
+    for (const socket of io.sockets.sockets.values()) {
+      const handle = socket.data?.member;
+      if (!handle || findMemberByHandle(registry, handle)) {
+        continue;
+      }
+      for (const roomId of socket.rooms) {
+        if (roomId === socket.id || !isRoomProtected(registry, roomId)) {
+          continue;
+        }
+        socket.leave(roomId);
+        // The ROSTER comes from the store, not from socket.io's room — leaving
+        // the socket.io room alone would leave the name on the list.
+        store.leave(roomId, socket.id);
+        socket.emit("access-revoked", { roomId, reason: "membership was revoked" });
+        io.to(roomId).emit("room-user-change", store.memberIds(roomId));
+        logMembership(accessConfig.logPath, {
+          event: "revoked",
+          roomId,
+          socketId: socket.id,
+          member: handle,
+        });
+        revoked += 1;
+      }
+      delete socket.data.member;
+    }
+    return revoked;
+  };
+
+  // Watch the registry so a revocation is immediate. `unref` matters: without it
+  // the watcher holds the event loop open and a test suite never exits.
+  let watcher = null;
+  if (accessConfig.enforcement && accessConfig.registryPath) {
+    try {
+      watcher = watch(accessConfig.registryPath, { persistent: false }, () => {
+        // The write may still be in flight when the event fires.
+        setTimeout(revokeVanishedMembers, 60);
+      });
+      watcher.unref?.();
+    } catch {
+      watcher = null; // no file yet, or not watchable: revocation degrades to next-join
+    }
+  }
+
+  return { io, httpServer, store, revokeVanishedMembers, stopWatching: () => watcher?.close() };
 };
 
 // Only listen when run directly, so tests can start it on an ephemeral port.

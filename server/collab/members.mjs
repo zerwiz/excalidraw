@@ -84,6 +84,28 @@ switch (command) {
     break;
   }
 
+  case "remove": {
+    // Revoking a MEMBER, not an invite. The room server watches this file and
+    // drops the member's live sessions from protected rooms when it changes.
+    const handle = rest[0];
+    if (!handle) {
+      console.error("usage: members.mjs remove <handle>");
+      process.exit(2);
+    }
+    const before = registry.members.length;
+    registry.members = registry.members.filter((member) => member.handle !== handle);
+    if (registry.members.length === before) {
+      console.error(`'${handle}' is not a member.`);
+      process.exit(1);
+    }
+    save();
+    console.log(
+      `removed ${handle}. Live sessions in protected rooms end on the next ` +
+        `registry read; their next join is refused.`,
+    );
+    break;
+  }
+
   case "revoke": {
     const code = rest[0];
     if (!code || !revokeInvite(registry, code)) {
@@ -140,8 +162,9 @@ switch (command) {
 
   default:
     console.log(
-      "usage: members.mjs add <handle> [display name] | invite [room-id] [--ttl-days N] " +
-        "| revoke <code> | protect <room-id> | unprotect <room-id> | list",
+      "usage: members.mjs add <handle> [display name] | remove <handle> " +
+        "| invite [room-id] [--ttl-days N] | revoke <code> | protect <room-id> " +
+        "| unprotect <room-id> | list",
     );
     process.exit(command ? 2 : 0);
 }

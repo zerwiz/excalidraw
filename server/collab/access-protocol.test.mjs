@@ -11,6 +11,8 @@ import { after, before, describe, it } from "node:test";
 
 import { io as ioClient } from "socket.io-client";
 
+import { writeFileSync as writeSync } from "node:fs";
+
 import { hashToken, issueInvite, newToken } from "./access.mjs";
 import { createCollabServer } from "./index.mjs";
 
@@ -198,5 +200,124 @@ describe("with enforcement off", () => {
       socket.close();
       await new Promise((resolve) => server.close(resolve));
     }
+  });
+});
+
+describe("revoking a LIVE session (feature-0013)", () => {
+  it("drops a member's live sockets from a protected room, and tells the rest", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "collab-revoke-"));
+    const registryPath = join(dir, "members.json");
+    const logPath = join(dir, "access.log");
+    const token = newToken();
+    const room = "room-revoke1";
+    const writeRegistry = (members) =>
+      writeSync(
+        registryPath,
+        JSON.stringify({ members, invites: [], protectedRooms: [room] }),
+      );
+
+    writeRegistry([
+      { handle: "anna", displayName: "Anna", tokenHash: hashToken(token) },
+      { handle: "bo", displayName: "Bo", tokenHash: hashToken(newToken()) },
+    ]);
+
+    const created = createCollabServer({
+      origins: ["http://localhost:7311"],
+      accessConfig: { registryPath, logPath, enforcement: true },
+    });
+    const server = created.httpServer;
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+
+    const anna = ioClient(base, { transports: ["websocket"], forceNew: true, reconnection: false });
+    const witness = ioClient(base, { transports: ["websocket"], forceNew: true, reconnection: false });
+    clients.push(anna, witness);
+    await Promise.all([
+      new Promise((r) => anna.once("init-room", r)),
+      new Promise((r) => witness.once("init-room", r)),
+    ]);
+
+    const annaRoster = waitFor(anna, "room-user-change");
+    anna.emit("join-room", room, { token });
+    await annaRoster;
+
+    const witnessRoster = waitFor(witness, "room-user-change");
+    witness.emit("join-room", room, { token });
+    await witnessRoster;
+
+    // Anna is revoked while she is INSIDE the room.
+    const revokedEvent = waitFor(anna, "access-revoked", 5000);
+    const rosterAfter = waitFor(witness, "room-user-change", 5000);
+    writeRegistry([
+      { handle: "bo", displayName: "Bo", tokenHash: hashToken(newToken()) },
+    ]);
+
+    const [revokedPayload] = await revokedEvent;
+    assert.match(revokedPayload.reason, /revoked/);
+
+    const [members] = await rosterAfter;
+    assert.equal(members.includes(anna.id), false, "the revoked socket must be gone");
+    assert.equal(members.includes(witness.id), true);
+
+    // ...and a re-join is refused, with the same plain reason as before.
+    const denied = await new Promise((resolve) => {
+      anna.once("access-denied", (...args) => resolve(args));
+      anna.emit("join-room", room, { token });
+    });
+    assert.match(denied[0].reason, /unknown invite|not authorized|revoked|invite/);
+
+    created.stopWatching?.();
+    server.close();
+  });
+
+  it("does NOT disconnect anyone when only an INVITE is revoked", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "collab-revoke2-"));
+    const registryPath = join(dir, "members.json");
+    const room = "room-revoke2";
+    const invite = "invite-code-1";
+    writeSync(
+      registryPath,
+      JSON.stringify({
+        members: [],
+        invites: [{ code: invite, roomId: room }],
+        protectedRooms: [room],
+      }),
+    );
+
+    const created = createCollabServer({
+      origins: ["http://localhost:7311"],
+      accessConfig: { registryPath, logPath: join(dir, "a.log"), enforcement: true },
+    });
+    const server = created.httpServer;
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+
+    const guest = ioClient(base, { transports: ["websocket"], forceNew: true, reconnection: false });
+    clients.push(guest);
+    await new Promise((r) => guest.once("init-room", r));
+    const roster = waitFor(guest, "room-user-change");
+    guest.emit("join-room", room, { invite });
+    await roster;
+
+    let rogue = false;
+    guest.once("access-revoked", () => {
+      rogue = true;
+    });
+
+    // Revoke the invite while the guest is inside.
+    writeSync(
+      registryPath,
+      JSON.stringify({
+        members: [],
+        invites: [{ code: invite, roomId: room, revoked: true }],
+        protectedRooms: [room],
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    assert.equal(rogue, false, "an invite is a door, not a leash");
+    assert.equal(guest.connected, true);
+
+    created.stopWatching?.();
+    server.close();
   });
 });
